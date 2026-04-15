@@ -590,17 +590,12 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: TextField(
-                  controller: TextEditingController(text: config.title)
-                    ..selection = TextSelection.collapsed(
-                      offset: config.title.length,
-                    ),
-                  decoration: const InputDecoration(
-                    hintText: '训练日标题（可选）',
-                    isDense: true,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
+                child: _InlineTextField(
+                  initialValue: config.title,
+                  hintText: '训练日标题（可选）',
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   style: const TextStyle(fontSize: 14),
                   onChanged: (v) => config.title = v,
                 ),
@@ -835,40 +830,12 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
     double width = 60,
     required ValueChanged<String> onChanged,
   }) {
-    return SizedBox(
+    return _InlineMiniField(
+      value: value,
+      hint: hint,
+      suffix: suffix,
       width: width,
-      height: 32,
-      child: TextField(
-        controller: TextEditingController(text: value)
-          ..selection = TextSelection.collapsed(offset: value.length),
-        decoration: InputDecoration(
-          hintText: hint,
-          suffixText: suffix,
-          isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: AppTheme.primaryGold, width: 1.5),
-          ),
-          hintStyle: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-          suffixStyle:
-              const TextStyle(fontSize: 10, color: AppTheme.textTertiary),
-        ),
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-        keyboardType: TextInputType.text,
-        onChanged: onChanged,
-      ),
+      onChanged: onChanged,
     );
   }
 
@@ -1739,5 +1706,156 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
       default:
         return cat;
     }
+  }
+}
+
+// =============================================================================
+// _InlineTextField – manages its own TextEditingController lifecycle
+// =============================================================================
+
+class _InlineTextField extends StatefulWidget {
+  const _InlineTextField({
+    required this.initialValue,
+    required this.onChanged,
+    this.hintText,
+    this.isDense = false,
+    this.contentPadding,
+    this.style,
+  });
+
+  final String initialValue;
+  final ValueChanged<String> onChanged;
+  final String? hintText;
+  final bool isDense;
+  final EdgeInsetsGeometry? contentPadding;
+  final TextStyle? style;
+
+  @override
+  State<_InlineTextField> createState() => _InlineTextFieldState();
+}
+
+class _InlineTextFieldState extends State<_InlineTextField> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void didUpdateWidget(_InlineTextField old) {
+    super.didUpdateWidget(old);
+    if (old.initialValue != widget.initialValue &&
+        _ctrl.text != widget.initialValue) {
+      _ctrl.text = widget.initialValue;
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _ctrl,
+      decoration: InputDecoration(
+        hintText: widget.hintText,
+        isDense: widget.isDense,
+        contentPadding: widget.contentPadding,
+      ),
+      style: widget.style,
+      onChanged: widget.onChanged,
+    );
+  }
+}
+
+// =============================================================================
+// _InlineMiniField – small input field with managed controller
+// =============================================================================
+
+class _InlineMiniField extends StatefulWidget {
+  const _InlineMiniField({
+    required this.value,
+    required this.hint,
+    this.suffix,
+    this.width = 60,
+    required this.onChanged,
+  });
+
+  final String value;
+  final String hint;
+  final String? suffix;
+  final double width;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_InlineMiniField> createState() => _InlineMiniFieldState();
+}
+
+class _InlineMiniFieldState extends State<_InlineMiniField> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(_InlineMiniField old) {
+    super.didUpdateWidget(old);
+    if (old.value != widget.value && _ctrl.text != widget.value) {
+      _ctrl.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: widget.width,
+      height: 32,
+      child: TextField(
+        controller: _ctrl,
+        decoration: InputDecoration(
+          hintText: widget.hint,
+          suffixText: widget.suffix,
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide:
+                const BorderSide(color: AppTheme.primaryGold, width: 1.5),
+          ),
+          hintStyle:
+              const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+          suffixStyle:
+              const TextStyle(fontSize: 10, color: AppTheme.textTertiary),
+        ),
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        keyboardType: TextInputType.text,
+        onChanged: widget.onChanged,
+      ),
+    );
   }
 }
