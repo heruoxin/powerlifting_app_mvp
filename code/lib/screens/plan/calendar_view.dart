@@ -45,6 +45,7 @@ class _CalendarViewState extends State<CalendarView> {
         final start = DateTime.parse(meso.startDate!);
         for (final micro in meso.microcycles) {
           for (final day in micro.days) {
+            // Training days are spaced every 2 days (matching demo data pattern)
             final date = start.add(
               Duration(days: micro.weekIndex * 7 + day.dayIndex * 2),
             );

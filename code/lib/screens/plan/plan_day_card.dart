@@ -241,33 +241,30 @@ class PlanDayCard extends StatelessWidget {
     final firstSet = item.sets.first.target;
     final parts = <String>[];
 
-    // Load
-    final loadVal = firstSet.load.value;
-    if (loadVal != null && loadVal.isNotEmpty && loadVal.first != null) {
+    final load = _firstVal(firstSet.load.value);
+    if (load != null) {
       final unit = firstSet.load.unit ?? 'kg';
-      parts.add('${_formatNum(loadVal.first!)}$unit');
+      parts.add('${_formatNum(load)}$unit');
     }
 
-    // Reps
-    final repVal = firstSet.rep.value;
-    if (repVal != null && repVal.isNotEmpty && repVal.first != null) {
-      parts.add('×${repVal.first!.toInt()}');
-    }
+    final rep = _firstVal(firstSet.rep.value);
+    if (rep != null) parts.add('×${rep.toInt()}');
 
-    // RPE
-    final rpeVal = firstSet.rpe.value;
-    if (rpeVal != null && rpeVal.isNotEmpty && rpeVal.first != null) {
-      parts.add('@RPE${_formatNum(rpeVal.first!)}');
-    }
+    final rpe = _firstVal(firstSet.rpe.value);
+    if (rpe != null) parts.add('@RPE${_formatNum(rpe)}');
 
-    // Duration
-    final durVal = firstSet.duration.value;
-    if (durVal != null && durVal.isNotEmpty && durVal.first != null) {
+    final dur = _firstVal(firstSet.duration.value);
+    if (dur != null) {
       final unit = firstSet.duration.unit ?? 's';
-      parts.add('${durVal.first!.toInt()}$unit');
+      parts.add('${dur.toInt()}$unit');
     }
 
     return parts.join(' ');
+  }
+
+  double? _firstVal(List<double?>? values) {
+    if (values == null || values.isEmpty) return null;
+    return values.first;
   }
 
   String _formatNum(double val) {
