@@ -1,0 +1,263 @@
+# 训练计划装配示例
+#
+# 说明：
+# 1. 这不是建议的磁盘存储格式，而是为了演示各层对象如何彼此装配。
+# 2. 真正落地时，建议各对象独立持久化，并靠 uid 引用组装。
+
+mesocycle:
+  uid: "5a0cf91b3d82"
+  state: "active"
+  cycle_index: 2
+  cycle_label: "C2"
+  title: "2026 春季 Strength Block"
+  phase_type: "strength"
+  phase_name: "Strength"
+  goal: "提升卧推主项强度，同时控制疲劳抬升速度"
+  note: "当前示例只展开 W3。"
+  start_date: "2026-03-16"
+  end_date: "2026-04-19"
+  timeline_order: 2
+  creation_mode: "ai_generated"
+  source_mesocycle_uid: null
+  active_microcycle_uid: "44b0d8f1ca92"
+  microcycle_uids: ["44b0d8f1ca92"]
+
+microcycles:
+  - uid: "44b0d8f1ca92"
+    mesocycle_uid: "5a0cf91b3d82"
+    state: "active"
+    week_index: 3
+    week_label: "W3"
+    week_kind: "regular"
+    week_pattern_key: "A"
+    focus_note: "卧推主项强度优先。"
+    note: null
+    start_date: "2026-03-30"
+    end_date: "2026-04-05"
+    day_uids: ["2ed91f6a4c38"]
+
+plan_days:
+  - uid: "2ed91f6a4c38"
+    microcycle_uid: "44b0d8f1ca92"
+    day_label: "D2A"
+    day_order_in_microcycle: 2
+    planned_date: "2026-04-02"
+    title: "卧推日"
+    goal: "主项强度优先，后半段控制疲劳"
+    note: "第三组后疲劳抬升较快。"
+    creation_mode: "manual"
+    source_plan_day_uid: null
+    exercise_item_uids:
+      - "5d9f3bc1a4e2"
+      - "74c1e8ad9b35"
+      - "93dc20ab7f51"
+      - "bc14a9df0287"
+      - "8ed2c71ab430"
+
+plan_exercise_items:
+  - uid: "5d9f3bc1a4e2"
+    plan_day_uid: "2ed91f6a4c38"
+    order_in_day: 1
+    exercise_type_uid: "a1b2c3d4e5f6"
+    exercise_type_key: "bench_press"
+    display_name_override: null
+    note: "主项训练"
+    record_profile_key: "main_lift_lir_profile"
+    field_visibility:
+      load: true
+      intensity: true
+      rep: true
+      rpe: true
+      duration: false
+      distance: false
+      note: true
+    projection_policy:
+      auto_project_load_intensity_rpe: true
+      prefer_single_direct_input: true
+    intensity_basis_override_key: null
+    set_uids: ["a13f0e9b8c42", "6ef3d17a0bb4"]
+
+  - uid: "74c1e8ad9b35"
+    plan_day_uid: "2ed91f6a4c38"
+    order_in_day: 2
+    exercise_type_uid: "7f0a1ec3249d"
+    exercise_type_key: "cable_row"
+    display_name_override: "龙门架划船"
+    note: "辅助背部容量"
+    record_profile_key: "load_reps_profile"
+    field_visibility:
+      load: true
+      intensity: false
+      rep: true
+      rpe: false
+      duration: false
+      distance: false
+      note: true
+    projection_policy:
+      auto_project_load_intensity_rpe: false
+      prefer_single_direct_input: false
+    intensity_basis_override_key: null
+    set_uids: ["cb89d4f2176a"]
+
+  - uid: "93dc20ab7f51"
+    plan_day_uid: "2ed91f6a4c38"
+    order_in_day: 3
+    exercise_type_uid: "90ab43cfd278"
+    exercise_type_key: "pull_up"
+    display_name_override: null
+    note: "自重动作"
+    record_profile_key: "bodyweight_reps_profile"
+    field_visibility:
+      load: true
+      intensity: false
+      rep: true
+      rpe: false
+      duration: false
+      distance: false
+      note: true
+    projection_policy:
+      auto_project_load_intensity_rpe: false
+      prefer_single_direct_input: false
+    intensity_basis_override_key: null
+    set_uids: ["9be0d2c17f45"]
+
+  - uid: "bc14a9df0287"
+    plan_day_uid: "2ed91f6a4c38"
+    order_in_day: 4
+    exercise_type_uid: "bd4a0f8c11e7"
+    exercise_type_key: "plank"
+    display_name_override: "哥本哈根平板支撑"
+    note: "稳定性辅助"
+    record_profile_key: "timed_hold_profile"
+    field_visibility:
+      load: true
+      intensity: false
+      rep: false
+      rpe: false
+      duration: true
+      distance: false
+      note: true
+    projection_policy:
+      auto_project_load_intensity_rpe: false
+      prefer_single_direct_input: false
+    intensity_basis_override_key: null
+    set_uids: ["f0a4cd8219be"]
+
+  - uid: "8ed2c71ab430"
+    plan_day_uid: "2ed91f6a4c38"
+    order_in_day: 5
+    exercise_type_uid: "8f21a0d7c4be"
+    exercise_type_key: "swimming"
+    display_name_override: null
+    note: "收操有氧"
+    record_profile_key: "distance_time_cardio_profile"
+    field_visibility:
+      load: false
+      intensity: false
+      rep: false
+      rpe: false
+      duration: true
+      distance: true
+      note: true
+    projection_policy:
+      auto_project_load_intensity_rpe: false
+      prefer_single_direct_input: false
+    intensity_basis_override_key: null
+    set_uids: ["be7d4c1a92f0"]
+
+plan_sets:
+  - uid: "a13f0e9b8c42"
+    exercise_item_uid: "5d9f3bc1a4e2"
+    set_order_in_item: 1
+    tags: ["top_set"]
+    is_optional: false
+    primary_prescription_field: "load"
+    target:
+      load: { value: [112.5], unit: "kg", text: null, origin: "authored" }
+      intensity: { percent_1rm: [82.5], reference_lift_key: "bench_press", origin: "derived" }
+      rep: { value: [3], origin: "authored" }
+      rpe: { value: [8.0, 9.0], origin: "derived" }
+      duration: { value: null, unit: null, origin: "empty" }
+      distance: { value: null, unit: null, origin: "empty" }
+      note: { text: "Top set", origin: "authored" }
+    projection_rule_key: "main_lift_lir_v1"
+
+  - uid: "6ef3d17a0bb4"
+    exercise_item_uid: "5d9f3bc1a4e2"
+    set_order_in_item: 2
+    tags: ["backoff"]
+    is_optional: false
+    primary_prescription_field: "intensity"
+    target:
+      load: { value: [100], unit: "kg", text: null, origin: "derived" }
+      intensity: { percent_1rm: [75], reference_lift_key: "bench_press", origin: "authored" }
+      rep: { value: [5], origin: "authored" }
+      rpe: { value: [6.5, 7.0], origin: "derived" }
+      duration: { value: null, unit: null, origin: "empty" }
+      distance: { value: null, unit: null, origin: "empty" }
+      note: { text: "Backoff 1", origin: "authored" }
+    projection_rule_key: "main_lift_lir_v1"
+
+  - uid: "cb89d4f2176a"
+    exercise_item_uid: "74c1e8ad9b35"
+    set_order_in_item: 1
+    tags: ["work_set"]
+    is_optional: false
+    primary_prescription_field: "load"
+    target:
+      load: { value: [55], unit: "kg", text: null, origin: "authored" }
+      intensity: { percent_1rm: null, reference_lift_key: null, origin: "empty" }
+      rep: { value: [10], origin: "authored" }
+      rpe: { value: null, origin: "empty" }
+      duration: { value: null, unit: null, origin: "empty" }
+      distance: { value: null, unit: null, origin: "empty" }
+      note: { text: "稳定划", origin: "authored" }
+    projection_rule_key: null
+
+  - uid: "9be0d2c17f45"
+    exercise_item_uid: "93dc20ab7f51"
+    set_order_in_item: 1
+    tags: ["work_set"]
+    is_optional: false
+    primary_prescription_field: "load"
+    target:
+      load: { value: null, unit: null, text: "自重", origin: "authored" }
+      intensity: { percent_1rm: null, reference_lift_key: null, origin: "empty" }
+      rep: { value: [8], origin: "authored" }
+      rpe: { value: null, origin: "empty" }
+      duration: { value: null, unit: null, origin: "empty" }
+      distance: { value: null, unit: null, origin: "empty" }
+      note: { text: null, origin: "empty" }
+    projection_rule_key: null
+
+  - uid: "f0a4cd8219be"
+    exercise_item_uid: "bc14a9df0287"
+    set_order_in_item: 1
+    tags: ["work_set"]
+    is_optional: false
+    primary_prescription_field: "duration"
+    target:
+      load: { value: null, unit: null, text: "自重", origin: "authored" }
+      intensity: { percent_1rm: null, reference_lift_key: null, origin: "empty" }
+      rep: { value: null, origin: "empty" }
+      rpe: { value: null, origin: "empty" }
+      duration: { value: [30], unit: "second", origin: "authored" }
+      distance: { value: null, unit: null, origin: "empty" }
+      note: { text: "每侧", origin: "authored" }
+    projection_rule_key: null
+
+  - uid: "be7d4c1a92f0"
+    exercise_item_uid: "8ed2c71ab430"
+    set_order_in_item: 1
+    tags: ["work_set"]
+    is_optional: false
+    primary_prescription_field: "distance"
+    target:
+      load: { value: null, unit: null, text: null, origin: "empty" }
+      intensity: { percent_1rm: null, reference_lift_key: null, origin: "empty" }
+      rep: { value: null, origin: "empty" }
+      rpe: { value: null, origin: "empty" }
+      duration: { value: [12, 15], unit: "minute", origin: "authored" }
+      distance: { value: [500], unit: "m", origin: "authored" }
+      note: { text: "轻松游", origin: "authored" }
+    projection_rule_key: null

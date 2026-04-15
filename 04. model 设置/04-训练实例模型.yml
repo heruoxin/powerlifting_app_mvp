@@ -1,0 +1,330 @@
+# 训练实例模型
+#
+# 说明：
+# 1. 本文件用于定义一次“已经开始”的训练会话正式对象，沿用现有术语 `training_record`。
+# 2. 它同时服务：
+#    - 训练进行中
+#    - 训练已完成
+#    - 训练被系统自动终止
+# 3. 它不是训练计划源；它是从某个 `plan_day` 或一次 `OS` 启动出来的执行实例。
+# 4. 为遵循最小化原则，首版只保存真正影响执行、恢复和复盘的数据。
+# 5. AI 消息、笔记计数、月历角标、统计聚合结果不直接写进这里，而由其他层从本对象推导。
+
+design_rules:
+  - "根对象名称继续使用 training_record，避免与现有引用体系冲突。"
+  - "训练开始时冻结 baseline；训练中可改 working；练后默认永远比较 baseline vs actual。"
+  - "同一时刻只允许一个 current set 处于 in_progress。"
+  - "App 重启时，只要 training_record.state = in_progress 且 started_at 距当前未超过 8 小时，就按 runtime 恢复。"
+  - "若 App 启动时发现 started_at 距当前超过 8 小时，则自动改写为 terminated。"
+  - "OS 不是计划源对象，但可以作为一次 training_record 的合法入口。"
+  - "未执行不单独设 set.state；它由 training_record 已结束 + set.state 仍为 pending 共同推导。"
+
+shared_structures:
+  metric_bundle:
+    load:
+      value: [100] # 仍沿用 [single] / [min,max] / [min,null] 语法。
+      unit: "kg|null" # kg | lb | null
+      text: "<string|null>" # 自重 / 辅助 / 弹力带 等文本负荷。
+      origin: "authored" # authored | derived | empty
+    intensity:
+      percent_1rm: [75] # 按对应主项估算得到的强度百分比。
+      reference_lift_key: "bench_press|null" # bench_press | high_bar_squat | low_bar_squat | sumo_deadlift | conventional_deadlift | null
+      origin: "derived"
+    rep:
+      value: [5]
+      origin: "authored"
+    rpe:
+      value: [7.5, 8.0]
+      origin: "derived"
+    duration:
+      value: null
+      unit: "second|null" # second | minute | null
+      origin: "empty"
+    distance:
+      value: null
+      unit: "m|null" # m | km | lap | null
+      origin: "empty"
+    note:
+      text: "Backoff"
+      origin: "authored"
+
+schema:
+  training_record:
+    uid: "<hex>" # 稳定主键。
+    state: "in_progress" # in_progress | completed | terminated
+    ended_reason: "null" # null | completed_by_user | terminated_timeout_8h
+    entry_kind: "planned_day" # planned_day | open_session
+    source_snapshot:
+      mesocycle_uid: "<hex|null>" # 来自既定计划时可回指中周期；OS 为空。
+      microcycle_uid: "<hex|null>" # 来自既定计划时可回指小周期；OS 为空。
+      plan_day_uid: "<hex|null>" # 来自既定计划时记录来源训练日；OS 为空。
+      week_label: "W3" # 用户可见的 W 标签；OS 仍归属当前 W。
+      day_label: "D2A" # exact string；开放训练统一写 OS。
+      phase_name: "Strength|null" # 例如 Strength / Hypertrophy / Peaking；没有则为空。
+      day_title: "卧推日|null" # 例如 卧推日；OS 可为空。
+    started_at: "<datetime>" # 真正点击“开始训练”的时间。
+    last_active_at: "<datetime>" # 最近一次写入训练状态的时间，用于恢复和调试。
+    ended_at: "<datetime|null>" # 训练结束或被自动终止时写入。
+    runtime:
+      current_segment_kind: "ready" # ready | set | rest | ended
+      current_exercise_item_uid: "<hex|null>" # 当前高亮的动作卡；没有则为空。
+      current_set_uid: "<hex|null>" # 当前进行中的组；若处于 ready / ended 则为空。
+      segment_started_at: "<datetime|null>" # 当前段开始时间；用于高亮条第一行计时。
+      rest_anchor_set_uid: "<hex|null>" # 若 current_segment_kind = rest，则记录刚完成的那一组。
+    exercise_items:
+      - uid: "<hex>" # 本次训练里的动作实例 uid。
+        source_plan_exercise_item_uid: "<hex|null>" # 若来自既定计划则回指计划源动作；本次新增则为空。
+        source_kind: "planned" # planned | session_added
+        order_in_session: 1 # 当前会话内的动作顺序；拖拽动作卡时更新它。
+        exercise_type_uid: "<hex>" # 指向类型表。
+        exercise_type_key: "bench_press" # 语义 key，便于工程识别。
+        display_name: "卧推" # 训练实例内冻结的显示名快照。
+        exercise_category: "main_lift" # main_lift | variation | accessory | cardio | mobility_stability | skill
+        record_profile_key: "main_lift_lir_profile" # 本次执行时采用的记录档案。
+        field_visibility:
+          load: true
+          intensity: true
+          rep: true
+          rpe: true
+          duration: false
+          distance: false
+          note: true
+        note: "<string|null>" # 训练中的动作级备注。
+        sets:
+          - uid: "<hex>" # 本次训练里的组实例 uid。
+            source_plan_set_uid: "<hex|null>" # 若来自既定计划则回指计划源组；本次新增则为空。
+            source_kind: "planned" # planned | session_added
+            set_order_in_item: 1 # 当前动作内的固定组序；训练中不支持组内拖拽。
+            tags:
+              - "top_set" # warmup | top_set | backoff | work_set | drop_set | amrap | cooldown | custom
+            state: "pending" # pending | in_progress | completed | failed | skipped
+            started_at: "<datetime|null>" # 点击 [开始] 时写入。
+            ended_at: "<datetime|null>" # 点击 [结束] 并确认结果时写入。
+            baseline_target: "<metric_bundle|null>" # 开始训练瞬间冻结的原计划；OS 或本次新增可为空。
+            working_target: "<metric_bundle|null>" # 训练中可编辑的当前执行方案；被删除的未来组可置空。
+            actual:
+              load:
+                value: null
+                unit: null
+                text: null
+                origin: "empty"
+              intensity:
+                percent_1rm: null
+                reference_lift_key: null
+                origin: "empty"
+              rep:
+                value: null
+                origin: "empty"
+              rpe:
+                value: null
+                origin: "empty"
+              duration:
+                value: null
+                unit: null
+                origin: "empty"
+              distance:
+                value: null
+                unit: null
+                origin: "empty"
+              note:
+                text: null
+                origin: "empty"
+
+recovery_rules:
+  - "训练中每次发生以下事件，都应立即持久化整个 training_record 或至少持久化 runtime 与被改动的 item/set：开始组、结束组、进入休息、结束休息、拖动动作卡、编辑 working_target、完成训练。"
+  - "App 启动时，若存在 state = in_progress 的 training_record："
+  - "若当前时间 - started_at <= 8 小时，则直接按 runtime 恢复工作台。"
+  - "若当前时间 - started_at > 8 小时，则自动改写为 state = terminated、ended_reason = terminated_timeout_8h、ended_at = 当前时间、runtime.current_segment_kind = ended。"
+  - "恢复时若 runtime.current_segment_kind = set，则滚动到 current_exercise_item_uid，并展开 current_set_uid。"
+  - "恢复时若 runtime.current_segment_kind = rest，则高亮条显示组间休息，并滚动到 rest_anchor_set_uid 所属动作卡。"
+  - "恢复时若 runtime.current_segment_kind = ready，则高亮条显示准备开始，并滚动到第一个动作卡。"
+
+derivation_rules:
+  - "全局高亮条第一行文本："
+  - "若 runtime.current_segment_kind = set，则显示 current_exercise_item_uid 对应动作名。"
+  - "若 runtime.current_segment_kind = rest，则显示 组间休息。"
+  - "若 runtime.current_segment_kind = ready，则显示 准备开始。"
+  - "高亮条第一行计时 = 当前时间 - runtime.segment_started_at。"
+  - "高亮条第二行上下文 = source_snapshot.week_label + source_snapshot.day_label + source_snapshot.phase_name。"
+  - "高亮条第二行总计时 = 当前时间 - started_at。"
+  - "完成页中的 未执行 = training_record.state != in_progress 且 set.state = pending。"
+  - "完成页中的 失败 = set.state = failed。"
+  - "完成页中的 跳过 = set.state = skipped。"
+  - "完成页中的 本次新增 = source_plan_set_uid = null 且 actual 至少有一个字段非 empty。"
+  - "完成页中的 上调 / 下调 / 按计划 由 baseline_target 与 actual 的差异计算，不单独存标签。"
+
+examples:
+  example_in_progress_planned_day:
+    uid: "84ce1a2f9b30"
+    state: "in_progress"
+    ended_reason: null
+    entry_kind: "planned_day"
+    source_snapshot:
+      mesocycle_uid: "5a0cf91b3d82"
+      microcycle_uid: "44b0d8f1ca92"
+      plan_day_uid: "2ed91f6a4c38"
+      week_label: "W3"
+      day_label: "D2A"
+      phase_name: "Strength"
+      day_title: "卧推日"
+    started_at: "2026-04-07T19:32:08+08:00"
+    last_active_at: "2026-04-07T20:13:41+08:00"
+    ended_at: null
+    runtime:
+      current_segment_kind: "set"
+      current_exercise_item_uid: "5d9f3bc1a4e2"
+      current_set_uid: "6ef3d17a0bb4"
+      segment_started_at: "2026-04-07T20:12:18+08:00"
+      rest_anchor_set_uid: null
+    exercise_items:
+      - uid: "5d9f3bc1a4e2"
+        source_plan_exercise_item_uid: "5d9f3bc1a4e2"
+        source_kind: "planned"
+        order_in_session: 1
+        exercise_type_uid: "a1b2c3d4e5f6"
+        exercise_type_key: "bench_press"
+        display_name: "卧推"
+        exercise_category: "main_lift"
+        record_profile_key: "main_lift_lir_profile"
+        field_visibility:
+          load: true
+          intensity: true
+          rep: true
+          rpe: true
+          duration: false
+          distance: false
+          note: true
+        note: "主项训练"
+        sets:
+          - uid: "a13f0e9b8c42"
+            source_plan_set_uid: "a13f0e9b8c42"
+            source_kind: "planned"
+            set_order_in_item: 1
+            tags: ["top_set"]
+            state: "completed"
+            started_at: "2026-04-07T19:54:00+08:00"
+            ended_at: "2026-04-07T19:55:12+08:00"
+            baseline_target:
+              load: { value: [112.5], unit: "kg", text: null, origin: "authored" }
+              intensity: { percent_1rm: [82.5], reference_lift_key: "bench_press", origin: "derived" }
+              rep: { value: [3], origin: "authored" }
+              rpe: { value: [8.0, 9.0], origin: "derived" }
+              duration: { value: null, unit: null, origin: "empty" }
+              distance: { value: null, unit: null, origin: "empty" }
+              note: { text: "Top set", origin: "authored" }
+            working_target:
+              load: { value: [112.5], unit: "kg", text: null, origin: "authored" }
+              intensity: { percent_1rm: [82.5], reference_lift_key: "bench_press", origin: "derived" }
+              rep: { value: [3], origin: "authored" }
+              rpe: { value: [8.0, 9.0], origin: "derived" }
+              duration: { value: null, unit: null, origin: "empty" }
+              distance: { value: null, unit: null, origin: "empty" }
+              note: { text: "Top set", origin: "authored" }
+            actual:
+              load: { value: [112.5], unit: "kg", text: null, origin: "authored" }
+              intensity: { percent_1rm: [82.5], reference_lift_key: "bench_press", origin: "derived" }
+              rep: { value: [3], origin: "authored" }
+              rpe: { value: [8.0], origin: "authored" }
+              duration: { value: null, unit: null, origin: "empty" }
+              distance: { value: null, unit: null, origin: "empty" }
+              note: { text: "Top set", origin: "authored" }
+          - uid: "6ef3d17a0bb4"
+            source_plan_set_uid: "6ef3d17a0bb4"
+            source_kind: "planned"
+            set_order_in_item: 2
+            tags: ["backoff"]
+            state: "in_progress"
+            started_at: "2026-04-07T20:12:18+08:00"
+            ended_at: null
+            baseline_target:
+              load: { value: [100], unit: "kg", text: null, origin: "derived" }
+              intensity: { percent_1rm: [75], reference_lift_key: "bench_press", origin: "authored" }
+              rep: { value: [5], origin: "authored" }
+              rpe: { value: [6.5, 7.0], origin: "derived" }
+              duration: { value: null, unit: null, origin: "empty" }
+              distance: { value: null, unit: null, origin: "empty" }
+              note: { text: "Backoff 1", origin: "authored" }
+            working_target:
+              load: { value: [97.5], unit: "kg", text: null, origin: "authored" }
+              intensity: { percent_1rm: [73], reference_lift_key: "bench_press", origin: "derived" }
+              rep: { value: [5], origin: "authored" }
+              rpe: { value: [7.0, 7.5], origin: "derived" }
+              duration: { value: null, unit: null, origin: "empty" }
+              distance: { value: null, unit: null, origin: "empty" }
+              note: { text: "略下调", origin: "authored" }
+            actual:
+              load: { value: [97.5], unit: "kg", text: null, origin: "authored" }
+              intensity: { percent_1rm: [73], reference_lift_key: "bench_press", origin: "derived" }
+              rep: { value: [5], origin: "authored" }
+              rpe: { value: null, origin: "empty" }
+              duration: { value: null, unit: null, origin: "empty" }
+              distance: { value: null, unit: null, origin: "empty" }
+              note: { text: "略下调", origin: "authored" }
+
+  example_completed_open_session:
+    uid: "71be4ca203df"
+    state: "completed"
+    ended_reason: "completed_by_user"
+    entry_kind: "open_session"
+    source_snapshot:
+      mesocycle_uid: null
+      microcycle_uid: null
+      plan_day_uid: null
+      week_label: "W3"
+      day_label: "OS"
+      phase_name: null
+      day_title: null
+    started_at: "2026-04-07T15:10:00+08:00"
+    last_active_at: "2026-04-07T15:34:55+08:00"
+    ended_at: "2026-04-07T15:34:55+08:00"
+    runtime:
+      current_segment_kind: "ended"
+      current_exercise_item_uid: null
+      current_set_uid: null
+      segment_started_at: null
+      rest_anchor_set_uid: null
+    exercise_items:
+      - uid: "8ed2c71ab430"
+        source_plan_exercise_item_uid: null
+        source_kind: "session_added"
+        order_in_session: 1
+        exercise_type_uid: "8f21a0d7c4be"
+        exercise_type_key: "swimming"
+        display_name: "游泳"
+        exercise_category: "cardio"
+        record_profile_key: "distance_time_cardio_profile"
+        field_visibility:
+          load: false
+          intensity: false
+          rep: false
+          rpe: false
+          duration: true
+          distance: true
+          note: true
+        note: "收操有氧"
+        sets:
+          - uid: "be7d4c1a92f0"
+            source_plan_set_uid: null
+            source_kind: "session_added"
+            set_order_in_item: 1
+            tags: ["work_set"]
+            state: "completed"
+            started_at: "2026-04-07T15:12:03+08:00"
+            ended_at: "2026-04-07T15:24:55+08:00"
+            baseline_target: null
+            working_target:
+              load: { value: null, unit: null, text: null, origin: "empty" }
+              intensity: { percent_1rm: null, reference_lift_key: null, origin: "empty" }
+              rep: { value: null, origin: "empty" }
+              rpe: { value: null, origin: "empty" }
+              duration: { value: [12, 15], unit: "minute", origin: "authored" }
+              distance: { value: [500], unit: "m", origin: "authored" }
+              note: { text: "轻松游", origin: "authored" }
+            actual:
+              load: { value: null, unit: null, text: null, origin: "empty" }
+              intensity: { percent_1rm: null, reference_lift_key: null, origin: "empty" }
+              rep: { value: null, origin: "empty" }
+              rpe: { value: null, origin: "empty" }
+              duration: { value: [14], unit: "minute", origin: "authored" }
+              distance: { value: [500], unit: "m", origin: "authored" }
+              note: { text: "本次新增", origin: "authored" }

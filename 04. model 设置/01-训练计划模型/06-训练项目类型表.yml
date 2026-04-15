@@ -1,0 +1,243 @@
+# 训练项目类型表
+#
+# 说明：
+# 1. 这不是用户可见的模板库，而是工程层的项目类型元数据表。
+# 2. 每个类型定义“它是什么”，而不是“这一天怎么练它”。
+# 3. 记录需求优先通过 record profile 表达，再由具体计划实例做少量覆盖。
+
+record_profiles:
+  - key: "main_lift_lir_profile" # LIR = load / intensity / RPE
+    display_name: "Competition Main Lift"
+    default_visible_fields: ["load", "intensity", "rep", "rpe", "note"]
+    load_mode: "numeric_mass" # numeric_mass | text_or_numeric | text_only | none
+    supports_intensity: true
+    supports_rpe: true
+    supports_rep: true
+    supports_duration: false
+    supports_distance: false
+    auto_projection_rule_key: "main_lift_lir_v1"
+    prefer_single_direct_input: true
+    note: "比赛主项默认启用 load / intensity / RPE 三者联动。"
+
+  - key: "load_reps_profile"
+    display_name: "Load + Reps"
+    default_visible_fields: ["load", "rep", "note"]
+    load_mode: "numeric_mass"
+    supports_intensity: false
+    supports_rpe: false
+    supports_rep: true
+    supports_duration: false
+    supports_distance: false
+    auto_projection_rule_key: null
+    prefer_single_direct_input: false
+    note: "变式与常见辅助力量动作默认使用这类记录需求。"
+
+  - key: "bodyweight_reps_profile"
+    display_name: "Bodyweight Reps"
+    default_visible_fields: ["load", "rep", "note"]
+    load_mode: "text_or_numeric"
+    supports_intensity: false
+    supports_rpe: false
+    supports_rep: true
+    supports_duration: false
+    supports_distance: false
+    auto_projection_rule_key: null
+    prefer_single_direct_input: false
+    note: "适用于引体向上、俯卧撑等自重动作，也兼容辅助或外挂重量。"
+
+  - key: "timed_hold_profile"
+    display_name: "Timed Hold"
+    default_visible_fields: ["load", "duration", "note"]
+    load_mode: "text_or_numeric"
+    supports_intensity: false
+    supports_rpe: false
+    supports_rep: false
+    supports_duration: true
+    supports_distance: false
+    auto_projection_rule_key: null
+    prefer_single_direct_input: false
+    note: "适用于平板支撑、悬垂等计时保持类动作。"
+
+  - key: "distance_time_cardio_profile"
+    display_name: "Distance + Time Cardio"
+    default_visible_fields: ["distance", "duration", "note"]
+    load_mode: "none"
+    supports_intensity: false
+    supports_rpe: false
+    supports_rep: false
+    supports_duration: true
+    supports_distance: true
+    auto_projection_rule_key: null
+    prefer_single_direct_input: false
+    note: "适用于游泳、跑步、划船机等距离/时间并存的有氧项目。"
+
+exercise_types:
+  - uid: "f5b7c8a12340"
+    key: "high_bar_squat"
+    category: "main_lift" # main_lift | variation | accessory | cardio | mobility_stability | skill
+    competition_lift_family: "squat" # squat | bench | deadlift | null
+    intensity_basis_key: "high_bar_squat"
+    default_record_profile_key: "main_lift_lir_profile"
+    allowed_record_profile_keys: ["main_lift_lir_profile"]
+    names:
+      zh-CN:
+        full: "高杠深蹲"
+        short: "高杠蹲"
+        aliases: ["HB深蹲", "高杠"]
+      en:
+        full: "High-Bar Squat"
+        short: "HB Squat"
+        aliases: ["High Bar", "High-Bar Back Squat"]
+
+  - uid: "c4d2a9f011be"
+    key: "low_bar_squat"
+    category: "main_lift"
+    competition_lift_family: "squat"
+    intensity_basis_key: "low_bar_squat"
+    default_record_profile_key: "main_lift_lir_profile"
+    allowed_record_profile_keys: ["main_lift_lir_profile"]
+    names:
+      zh-CN:
+        full: "低杠深蹲"
+        short: "低杠蹲"
+        aliases: ["LB深蹲", "低杠"]
+      en:
+        full: "Low-Bar Squat"
+        short: "LB Squat"
+        aliases: ["Low Bar", "Low-Bar Back Squat"]
+
+  - uid: "a1b2c3d4e5f6"
+    key: "bench_press"
+    category: "main_lift"
+    competition_lift_family: "bench"
+    intensity_basis_key: "bench_press"
+    default_record_profile_key: "main_lift_lir_profile"
+    allowed_record_profile_keys: ["main_lift_lir_profile"]
+    names:
+      zh-CN:
+        full: "卧推"
+        short: "卧推"
+        aliases: ["平板卧推", "比赛卧推"]
+      en:
+        full: "Bench Press"
+        short: "Bench"
+        aliases: ["Competition Bench Press", "Flat Bench Press"]
+
+  - uid: "e1f2048ba933"
+    key: "sumo_deadlift"
+    category: "main_lift"
+    competition_lift_family: "deadlift"
+    intensity_basis_key: "sumo_deadlift"
+    default_record_profile_key: "main_lift_lir_profile"
+    allowed_record_profile_keys: ["main_lift_lir_profile"]
+    names:
+      zh-CN:
+        full: "相扑硬拉"
+        short: "相扑拉"
+        aliases: ["相扑"]
+      en:
+        full: "Sumo Deadlift"
+        short: "Sumo"
+        aliases: ["Sumo Pull"]
+
+  - uid: "d0ce771ab284"
+    key: "conventional_deadlift"
+    category: "main_lift"
+    competition_lift_family: "deadlift"
+    intensity_basis_key: "conventional_deadlift"
+    default_record_profile_key: "main_lift_lir_profile"
+    allowed_record_profile_keys: ["main_lift_lir_profile"]
+    names:
+      zh-CN:
+        full: "传统硬拉"
+        short: "传统拉"
+        aliases: ["传统"]
+      en:
+        full: "Conventional Deadlift"
+        short: "Conv Deadlift"
+        aliases: ["Conventional Pull", "Conventional"]
+
+  - uid: "72e84c90ab55"
+    key: "close_grip_bench_press"
+    category: "variation"
+    competition_lift_family: "bench"
+    intensity_basis_key: "bench_press"
+    default_record_profile_key: "load_reps_profile"
+    allowed_record_profile_keys: ["load_reps_profile", "main_lift_lir_profile"]
+    names:
+      zh-CN:
+        full: "窄距卧推"
+        short: "窄卧推"
+        aliases: ["窄握卧推", "窄推"]
+      en:
+        full: "Close-Grip Bench Press"
+        short: "CGBP"
+        aliases: ["Close Grip Bench", "Close-Grip Bench"]
+
+  - uid: "7f0a1ec3249d"
+    key: "cable_row"
+    category: "accessory"
+    competition_lift_family: null
+    intensity_basis_key: null
+    default_record_profile_key: "load_reps_profile"
+    allowed_record_profile_keys: ["load_reps_profile"]
+    names:
+      zh-CN:
+        full: "龙门架划船"
+        short: "龙门架划"
+        aliases: ["滑轮划船", "绳索划船"]
+      en:
+        full: "Cable Row"
+        short: "Cable Row"
+        aliases: ["Seated Cable Row", "Cable Seated Row"]
+
+  - uid: "90ab43cfd278"
+    key: "pull_up"
+    category: "accessory"
+    competition_lift_family: null
+    intensity_basis_key: null
+    default_record_profile_key: "bodyweight_reps_profile"
+    allowed_record_profile_keys: ["bodyweight_reps_profile", "load_reps_profile"]
+    names:
+      zh-CN:
+        full: "引体向上"
+        short: "引体"
+        aliases: ["引体上拉", "引体向上（正手）"]
+      en:
+        full: "Pull-Up"
+        short: "Pull-Up"
+        aliases: ["Pull Up", "Pronated Pull-Up"]
+
+  - uid: "bd4a0f8c11e7"
+    key: "plank"
+    category: "mobility_stability"
+    competition_lift_family: null
+    intensity_basis_key: null
+    default_record_profile_key: "timed_hold_profile"
+    allowed_record_profile_keys: ["timed_hold_profile"]
+    names:
+      zh-CN:
+        full: "平板支撑"
+        short: "平板"
+        aliases: ["前平板", "Plank"]
+      en:
+        full: "Plank"
+        short: "Plank"
+        aliases: ["Front Plank"]
+
+  - uid: "8f21a0d7c4be"
+    key: "swimming"
+    category: "cardio"
+    competition_lift_family: null
+    intensity_basis_key: null
+    default_record_profile_key: "distance_time_cardio_profile"
+    allowed_record_profile_keys: ["distance_time_cardio_profile"]
+    names:
+      zh-CN:
+        full: "游泳"
+        short: "游泳"
+        aliases: ["自由泳", "泳训"]
+      en:
+        full: "Swimming"
+        short: "Swim"
+        aliases: ["Pool Swim", "Swimming Session"]

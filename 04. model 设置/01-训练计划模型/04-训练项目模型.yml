@@ -1,0 +1,58 @@
+# 训练项目模型
+#
+# 说明：
+# 1. 这里的“训练项目”是某一天里的一个具体项目实例，而不是项目类型定义。
+# 2. 类型定义统一放在 `06-训练项目类型表.yml`。
+# 3. 当前实例会记录“应用了哪份 record profile”，这样即使类型表未来调整，已存在计划也能稳定渲染。
+
+schema:
+  plan_exercise_item:
+    uid: "<hex>" # 稳定主键。
+    plan_day_uid: "<hex>" # 所属训练日。
+    order_in_day: 1 # 在当前训练日中的顺序。
+    exercise_type_uid: "<hex>" # 指向类型表里的正式项目类型。
+    exercise_type_key: "bench_press" # 语义 key，便于工程直接识别。
+    display_name_override: "<string|null>" # 若用户手工改名，可覆盖类型表默认名称。
+    note: "<string|null>" # 当前项目级备注。
+    record_profile_key: "main_lift_lir_profile" # 当前实例应用的记录档案快照 key。
+    field_visibility:
+      load: true # 是否显示 load。
+      intensity: true # 是否显示 intensity。
+      rep: true # 是否显示 rep。
+      rpe: true # 是否显示 RPE。
+      duration: false # 是否显示 duration。
+      distance: false # 是否显示 distance。
+      note: true # 是否显示 note。
+    projection_policy:
+      auto_project_load_intensity_rpe: true # 是否允许 load / intensity / RPE 自动联动。
+      prefer_single_direct_input: true # 是否优先只保留一个直接输入项。
+    intensity_basis_override_key: "<string|null>" # 允许当前实例覆盖强度参考主项，例如把某个变式临时改按另一主项估算。
+    set_uids: # 有序的训练组引用。
+      - "<hex>"
+      - "<hex>"
+
+example:
+  uid: "5d9f3bc1a4e2"
+  plan_day_uid: "2ed91f6a4c38"
+  order_in_day: 1
+  exercise_type_uid: "a1b2c3d4e5f6"
+  exercise_type_key: "bench_press"
+  display_name_override: null
+  note: "主项训练"
+  record_profile_key: "main_lift_lir_profile"
+  field_visibility:
+    load: true
+    intensity: true
+    rep: true
+    rpe: true
+    duration: false
+    distance: false
+    note: true
+  projection_policy:
+    auto_project_load_intensity_rpe: true
+    prefer_single_direct_input: true
+  intensity_basis_override_key: null
+  set_uids:
+    - "a13f0e9b8c42"
+    - "6ef3d17a0bb4"
+    - "8ab14f2dc931"

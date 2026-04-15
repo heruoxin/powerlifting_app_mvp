@@ -1,0 +1,121 @@
+# athlete_lift_profile
+#
+# 说明：
+# 1. 本模型只保存“运动员当前在各强度基准主项上的能力快照”。
+# 2. 它服务当前产品里已经明确存在的三类需求：
+#    - `load / intensity` 双向换算
+#    - 当前 `实际 PR / e1RM` 展示
+#    - 是否出现 `PR 突破` 的快速判断
+# 3. 它刻意不承载：
+#    - 趋势历史
+#    - 疲劳、容量、恢复状态
+#    - 各种 rep PR / volume PR / velocity PR
+#    - 训练记录明细
+# 4. 这意味着趋势图仍应来自历史训练记录或未来 summary 层，而不是把历史塞进这里。
+
+design_rules:
+  - "athlete_lift_profile 只按 intensity basis lift 建档，而不是为每一个训练项目都建档。"
+  - "这里的主键 key 必须能与 exercise_type.intensity_basis_key / metric_bundle.intensity.reference_lift_key 对齐。"
+  - "current_estimated_1rm 表示当前用于强度换算与信息展示的 e1RM 快照。"
+  - "actual_pr 表示当前已确认的最佳实际成功重量快照，它不等于 e1RM。"
+  - "当前模型只保留单一 best actual PR，不提前扩展成 1RM / 3RM / 5RM 多套 PR 体系。"
+  - "rounding 规则暂不放进这里，首版继续由全局单位/器械设置处理。"
+
+shared_structures:
+  mass_snapshot:
+    value: 120.0 # 当前快照数值。
+    unit: "kg" # kg | lb
+    updated_at: "<datetime>" # 最近一次写入该快照的时间。
+    source_kind: "derived" # manual | derived | imported
+    source_training_record_uid: "<hex|null>" # 若来自训练记录推导，则记录来源训练。
+    source_set_uid: "<hex|null>" # 若来自某一组，则记录该组 uid。
+
+  pr_snapshot:
+    value: 120.0 # 当前最佳实际成功重量。
+    unit: "kg" # kg | lb
+    achieved_at: "<datetime|null>" # 该 PR 真正发生的时间；若来自导入旧数据可为空。
+    source_training_record_uid: "<hex|null>" # 若能定位到具体训练，则记录它。
+    source_set_uid: "<hex|null>" # 若能定位到具体组，则记录它。
+
+schema:
+  athlete_lift_profile:
+    uid: "<hex>" # 稳定主键；单用户产品里通常只有一份。
+    updated_at: "<datetime>" # 任一 lift 快照更新后都刷新。
+    e1rm_formula_key: "epley_v1" # 当前用于生成 e1RM 快照的公式版本；manual 值可不受其影响。
+    lifts:
+      - lift_key: "bench_press" # 必须匹配 intensity basis lift key，例如 bench_press / low_bar_squat / sumo_deadlift
+        current_estimated_1rm:
+          value: 120.0
+          unit: "kg"
+          updated_at: "<datetime>"
+          source_kind: "derived"
+          source_training_record_uid: "<hex|null>"
+          source_set_uid: "<hex|null>"
+        actual_pr:
+          value: 117.5
+          unit: "kg"
+          achieved_at: "<datetime|null>"
+          source_training_record_uid: "<hex|null>"
+          source_set_uid: "<hex|null>"
+
+derivation_rules:
+  - "当计划或训练实例中的某组填写了 intensity.percent_1rm，且 reference_lift_key = X 时，应读取 athlete_lift_profile.lifts[X].current_estimated_1rm 参与 load 换算。"
+  - "当计划或训练实例中的某组直接填写了 numeric load，且 reference_lift_key = X 时，也应读取 athlete_lift_profile.lifts[X].current_estimated_1rm 反推 intensity。"
+  - "若某个训练项目类型的 intensity_basis_key = bench_press，则该项目默认读取 bench_press 对应的 lift profile。"
+  - "current_estimated_1rm 允许由训练结果自动刷新，也允许用户或教练手动修正；因此必须保留 source_kind。"
+  - "actual_pr 只应由成功完成的实际结果刷新；failed / skipped 不刷新它。"
+  - "actual_pr 首版只建议由 exact lift_key 对应的主项结果刷新，不默认让变式动作刷新主项 PR。"
+  - "月视图中的 PR 突破，可通过『某次成功完成的实际重量 > 对应 lift_key 的 actual_pr 旧值』快速判定。"
+  - "信息页中的 当前 e1RM，直接读取 current_estimated_1rm。"
+  - "信息页中的 当前实际 PR，直接读取 actual_pr。"
+
+examples:
+  example:
+    uid: "c2f19a8d4b63"
+    updated_at: "2026-04-07T21:05:12+08:00"
+    e1rm_formula_key: "epley_v1"
+    lifts:
+      - lift_key: "bench_press"
+        current_estimated_1rm:
+          value: 120.0
+          unit: "kg"
+          updated_at: "2026-04-07T21:05:12+08:00"
+          source_kind: "derived"
+          source_training_record_uid: "84ce1a2f9b30"
+          source_set_uid: "a13f0e9b8c42"
+        actual_pr:
+          value: 117.5
+          unit: "kg"
+          achieved_at: "2026-03-18T20:11:04+08:00"
+          source_training_record_uid: "90de71ac25b4"
+          source_set_uid: "b5f18a27ce40"
+
+      - lift_key: "low_bar_squat"
+        current_estimated_1rm:
+          value: 182.5
+          unit: "kg"
+          updated_at: "2026-04-05T19:48:31+08:00"
+          source_kind: "manual"
+          source_training_record_uid: null
+          source_set_uid: null
+        actual_pr:
+          value: 180.0
+          unit: "kg"
+          achieved_at: "2026-03-29T18:24:17+08:00"
+          source_training_record_uid: "55fa90bc218e"
+          source_set_uid: "d4e9b0ca128f"
+
+      - lift_key: "sumo_deadlift"
+        current_estimated_1rm:
+          value: 222.5
+          unit: "kg"
+          updated_at: "2026-04-02T21:18:55+08:00"
+          source_kind: "derived"
+          source_training_record_uid: "0ac3665f927b"
+          source_set_uid: "71a0cc8e12bd"
+        actual_pr:
+          value: 220.0
+          unit: "kg"
+          achieved_at: "2026-02-26T20:03:10+08:00"
+          source_training_record_uid: "de418cb70f22"
+          source_set_uid: "47af03c9e1b5"

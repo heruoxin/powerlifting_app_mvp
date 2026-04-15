@@ -1,0 +1,41 @@
+# 小周期模型
+#
+# 说明：
+# 1. 小周期当前等同于一个 W。
+# 2. 它属于某个 mesocycle，并持有本周内有序的训练日引用。
+# 3. 一周几练不是定数，所以 day_uids 的长度可以自由变化。
+
+schema:
+  microcycle:
+    uid: "<hex>" # 稳定主键。
+    mesocycle_uid: "<hex>" # 反向指向所属中周期。
+    state: "active" # planned | active | closed
+    week_index: 3 # 用户感知中的 W 序号。
+    week_label: "W3" # 用户可见标签，避免 UI 临时拼接。
+    week_kind: "regular" # regular | deload | test | travel_adjusted | custom
+    week_pattern_key: "A|null" # 支持 A/B 周；没有则为空。
+    focus_note: "<string|null>" # 本周重点，例如“卧推主项强度优先”。
+    note: "<string|null>" # 小周期级补充说明。
+    start_date: "YYYY-MM-DD|null" # 当前 W 的开始日期。
+    end_date: "YYYY-MM-DD|null" # 当前 W 的结束日期。
+    day_uids: # 有序的训练日引用，长度可以是 3、4 或其他值。
+      - "<hex>"
+      - "<hex>"
+      - "<hex>"
+
+example:
+  uid: "44b0d8f1ca92"
+  mesocycle_uid: "5a0cf91b3d82"
+  state: "active"
+  week_index: 3
+  week_label: "W3"
+  week_kind: "regular"
+  week_pattern_key: "A"
+  focus_note: "卧推主项强度优先，辅助动作收敛总量。"
+  note: "本周保持 3 练，不额外插入第 4 个训练日。"
+  start_date: "2026-03-30"
+  end_date: "2026-04-05"
+  day_uids:
+    - "71a0cc8e12bd"
+    - "2ed91f6a4c38"
+    - "8ac7d2f1e40b"

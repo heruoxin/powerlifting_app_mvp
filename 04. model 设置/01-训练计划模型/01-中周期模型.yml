@@ -1,0 +1,47 @@
+# 中周期模型
+#
+# 说明：
+# 1. 当前轮次中，mesocycle 是训练计划域的顶层正式对象。
+# 2. 它只负责中周期自己的元数据，以及有序的 microcycle 引用。
+# 3. 它不再内嵌更深层对象，避免整个计划被迫作为一个超大对象整体重写。
+
+schema:
+  mesocycle:
+    uid: "<hex>" # 稳定主键，统一使用随机十六进制字符串。
+    state: "active" # draft | active | closed | archived
+    cycle_index: 2 # 用户感知中的 C 序号。
+    cycle_label: "C2" # 用户可见标签，避免 UI 临时拼接。
+    title: "<string>" # 用户可见标题，例如“2026 春季 Strength Block”。
+    phase_type: "strength" # hypertrophy | strength | peaking | pivot | custom
+    phase_name: "<string>" # 用户可见阶段名，例如 Strength / Hypertrophy。
+    goal: "<string|null>" # 本中周期的核心目标，例如“提升卧推主项强度”。
+    note: "<string|null>" # 中周期级补充说明。
+    start_date: "YYYY-MM-DD|null" # 若已排进时间轴，则写入开始日期。
+    end_date: "YYYY-MM-DD|null" # 若已排进时间轴，则写入结束日期。
+    timeline_order: 2 # 只服务当前库内排序；未来若补 macrocycle，可由更高层接管。
+    creation_mode: "ai_generated" # manual | ai_generated | copied_from_mesocycle
+    source_mesocycle_uid: "<hex|null>" # 若来自复制另一中周期，则记录来源。
+    active_microcycle_uid: "<hex|null>" # 当前处于进行中的 W；草案或归档可为空。
+    microcycle_uids: # 只保留有序 uid，不直接内嵌 W 对象。
+      - "<hex>"
+      - "<hex>"
+
+example:
+  uid: "5a0cf91b3d82"
+  state: "active"
+  cycle_index: 2
+  cycle_label: "C2"
+  title: "2026 春季 Strength Block"
+  phase_type: "strength"
+  phase_name: "Strength"
+  goal: "提升卧推主项强度，同时控制疲劳抬升速度"
+  note: "W3 为 A 周，W4 为 B 周；B 周频率更高，但单次量更薄。"
+  start_date: "2026-03-16"
+  end_date: "2026-04-19"
+  timeline_order: 2
+  creation_mode: "ai_generated"
+  source_mesocycle_uid: null
+  active_microcycle_uid: "44b0d8f1ca92"
+  microcycle_uids:
+    - "44b0d8f1ca92"
+    - "8b72d14c0aa1"

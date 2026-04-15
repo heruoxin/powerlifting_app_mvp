@@ -1,0 +1,190 @@
+# 训练组模型
+#
+# 说明：
+# 1. 单组仍然是训练计划处方的最小单位。
+# 2. 这里不记录 actual；actual 仍属于 training_record。
+# 3. 单组同时允许保存 authored 与 derived 的目标值，但需要用 origin 标记真相来源。
+# 4. `primary_prescription_field` 只描述本组的主要处方基准；rep / duration / distance 仍可与它并存。
+
+schema:
+  plan_set:
+    uid: "<hex>" # 稳定主键。
+    exercise_item_uid: "<hex>" # 所属训练项目实例。
+    set_order_in_item: 1 # 在当前项目中的组序。
+    tags: # warmup | top_set | backoff | work_set | drop_set | amrap | cooldown | custom
+      - "top_set"
+    is_optional: false # 是否允许在计划阅读上视为可选组。
+    primary_prescription_field: "load" # load | intensity | rpe | duration | distance | mixed | none
+    target:
+      load:
+        value: [112.5] # 处方型数值仍沿用 [single] / [min,max] / [min,null] 语法。
+        unit: "kg|null" # kg | lb | null
+        text: "<string|null>" # 自重 / 辅助 / 弹力带 等文本负荷。
+        origin: "authored" # authored | derived | empty
+      intensity:
+        percent_1rm: [82.5] # 例如 82.5%。
+        reference_lift_key: "bench_press|null" # 说明按哪一个主项强度参考估算。
+        origin: "derived"
+      rep:
+        value: [3] # 固定值或范围值。
+        origin: "authored"
+      rpe:
+        value: [8.0, 9.0] # 首版允许保存范围。
+        origin: "derived"
+      duration:
+        value: null # 时间型动作时使用。
+        unit: "second|null" # second | minute | null
+        origin: "empty"
+      distance:
+        value: null # 距离型动作时使用。
+        unit: "m|null" # m | km | lap | null
+        origin: "empty"
+      note:
+        text: "Top set"
+        origin: "authored"
+    projection_rule_key: "main_lift_lir_v1|null" # 记录当时使用的投影/换算规则版本，便于未来迁移。
+
+examples:
+  example_main_lift_set:
+    uid: "a13f0e9b8c42"
+    exercise_item_uid: "5d9f3bc1a4e2"
+    set_order_in_item: 1
+    tags: ["top_set"]
+    is_optional: false
+    primary_prescription_field: "load"
+    target:
+      load:
+        value: [112.5]
+        unit: "kg"
+        text: null
+        origin: "authored"
+      intensity:
+        percent_1rm: [82.5]
+        reference_lift_key: "bench_press"
+        origin: "derived"
+      rep:
+        value: [3]
+        origin: "authored"
+      rpe:
+        value: [8.0, 9.0]
+        origin: "derived"
+      duration:
+        value: null
+        unit: null
+        origin: "empty"
+      distance:
+        value: null
+        unit: null
+        origin: "empty"
+      note:
+        text: "Top set"
+        origin: "authored"
+    projection_rule_key: "main_lift_lir_v1"
+
+  example_accessory_set:
+    uid: "cb89d4f2176a"
+    exercise_item_uid: "74c1e8ad9b35"
+    set_order_in_item: 1
+    tags: ["work_set"]
+    is_optional: false
+    primary_prescription_field: "load"
+    target:
+      load:
+        value: [55]
+        unit: "kg"
+        text: null
+        origin: "authored"
+      intensity:
+        percent_1rm: null
+        reference_lift_key: null
+        origin: "empty"
+      rep:
+        value: [10]
+        origin: "authored"
+      rpe:
+        value: null
+        origin: "empty"
+      duration:
+        value: null
+        unit: null
+        origin: "empty"
+      distance:
+        value: null
+        unit: null
+        origin: "empty"
+      note:
+        text: "稳定划"
+        origin: "authored"
+    projection_rule_key: null
+
+  example_timed_hold_set:
+    uid: "f0a4cd8219be"
+    exercise_item_uid: "bc14a9df0287"
+    set_order_in_item: 1
+    tags: ["work_set"]
+    is_optional: false
+    primary_prescription_field: "duration"
+    target:
+      load:
+        value: null
+        unit: null
+        text: "自重"
+        origin: "authored"
+      intensity:
+        percent_1rm: null
+        reference_lift_key: null
+        origin: "empty"
+      rep:
+        value: null
+        origin: "empty"
+      rpe:
+        value: null
+        origin: "empty"
+      duration:
+        value: [30]
+        unit: "second"
+        origin: "authored"
+      distance:
+        value: null
+        unit: null
+        origin: "empty"
+      note:
+        text: "每侧"
+        origin: "authored"
+    projection_rule_key: null
+
+  example_cardio_set:
+    uid: "be7d4c1a92f0"
+    exercise_item_uid: "8ed2c71ab430"
+    set_order_in_item: 1
+    tags: ["work_set"]
+    is_optional: false
+    primary_prescription_field: "distance"
+    target:
+      load:
+        value: null
+        unit: null
+        text: null
+        origin: "empty"
+      intensity:
+        percent_1rm: null
+        reference_lift_key: null
+        origin: "empty"
+      rep:
+        value: null
+        origin: "empty"
+      rpe:
+        value: null
+        origin: "empty"
+      duration:
+        value: [12, 15]
+        unit: "minute"
+        origin: "authored"
+      distance:
+        value: [500]
+        unit: "m"
+        origin: "authored"
+      note:
+        text: "轻松游"
+        origin: "authored"
+    projection_rule_key: null

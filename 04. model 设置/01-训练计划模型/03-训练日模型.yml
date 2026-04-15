@@ -1,0 +1,38 @@
+# 训练日模型
+#
+# 说明：
+# 1. day_label 直接按 exact string 存储，例如 D1A / D2A / D2B。
+# 2. 本层不对 day_label 做隐藏拆解，也不保存所谓“同族”关系。
+# 3. OS 不属于计划源；若某天是从开放训练沉淀而来，只通过 creation_mode 记录来源。
+
+schema:
+  plan_day:
+    uid: "<hex>" # 稳定主键。
+    microcycle_uid: "<hex>" # 所属 W。
+    day_label: "D2A" # 用户可见标签，直接按字符串存。
+    day_order_in_microcycle: 2 # 在当前 W 中的顺序。
+    planned_date: "YYYY-MM-DD|null" # 若已排期，则写入目标日期。
+    title: "<string>" # 用户可见标题，例如“卧推日”。
+    goal: "<string|null>" # 当前训练日的重点目标。
+    note: "<string|null>" # 训练日级说明。
+    creation_mode: "manual" # manual | ai_generated | copied_from_plan_day | converted_from_os
+    source_plan_day_uid: "<hex|null>" # 若来自复制另一训练日，则记录来源。
+    exercise_item_uids: # 有序的训练项目实例引用。
+      - "<hex>"
+      - "<hex>"
+
+example:
+  uid: "2ed91f6a4c38"
+  microcycle_uid: "44b0d8f1ca92"
+  day_label: "D2A"
+  day_order_in_microcycle: 2
+  planned_date: "2026-04-02"
+  title: "卧推日"
+  goal: "主项强度优先，后半段控制疲劳"
+  note: "第三组后容易疲劳抬升，辅助动作收量。"
+  creation_mode: "manual"
+  source_plan_day_uid: null
+  exercise_item_uids:
+    - "5d9f3bc1a4e2"
+    - "74c1e8ad9b35"
+    - "bc14a9df0287"

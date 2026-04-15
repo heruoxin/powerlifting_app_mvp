@@ -1,0 +1,310 @@
+# 训练笔记模型
+#
+# 说明：
+# 1. 本轮只定义“用户训练笔记”。
+# 2. AI 教练笔记仍沿用 Markdown 文件模型，不并入这里。
+# 3. 一条训练笔记允许同时持有多个计划引用、训练记录引用、以及其他笔记引用。
+# 4. 所有引用统一复用 object_ref，因此 references 必须是一个数组。
+
+schema:
+  training_note:
+    uid: "<hex>" # 笔记自己的稳定主键，和训练计划 / 训练记录一样使用随机十六进制。
+    note_type: "user_training_note" # 当前阶段先固定为用户训练笔记。
+    state: "active" # active | archived
+    title: "<string|null>" # 笔记标题为可选；默认不鼓励用户先想标题，UI 可优先让用户直接随想随记，必要时再补标题。
+    body_markdown: "<string>" # 正文直接使用 Markdown，兼容简单标题、列表和强调。
+    created_at: "ISO8601" # 创建时间。
+    updated_at: "ISO8601" # 最后更新时间。
+    created_from: "manual" # manual | plan_context | training_context | imported
+    visibility: "private" # 当前产品默认为本地私有笔记。
+    pinned: false # 是否置顶。
+    tags: [] # 用户自定义标签。
+    references: [] # 这里放 object_ref 数组；允许同时关联多个计划对象和训练对象。
+
+examples:
+  example_note_multi_plan_refs:
+    uid: "91f0b3d7ae24" # 这条笔记本身的 uid，后续 AI 教练模型也可以直接引用它。
+    note_type: "user_training_note" # 说明它属于用户训练笔记，而不是 AI 维护的 Markdown 文件。
+    state: "active" # active 表示它是当前正常可编辑、可展示的笔记。
+    title: "卧推底部发软对照" # 标题直接概括这条笔记最核心的问题。
+    body_markdown: | # 正文采用 Markdown，方便用户写小标题和项目符号。
+      对比了最近两次同槽位卧推。
+
+      - W2 D2：下放稳定，但起推略慢
+      - W3 D2：第三组后底部明显发软
+      - 猜测与肩胛稳定和疲劳累积同时有关
+
+      下次开始训练前，想先看一眼这个问题有没有再次出现。 # 这段正文体现了“同一条笔记可以服务多次训练复盘”。
+    created_at: "2026-04-03T10:05:00+08:00" # 笔记创建时间。
+    updated_at: "2026-04-03T10:22:00+08:00" # 后续补充对照结果后的更新时间。
+    created_from: "plan_context" # 这条笔记是从计划相关上下文里发起的。
+    visibility: "private" # 当前仍然默认私有。
+    pinned: true # 因为用户想在下次训练前再次看到它，所以这里示例设成 pinned。
+    tags: ["卧推", "技术问题", "肩胛"] # 标签帮助后续筛选。
+    references:
+      - uid: "ab41d29f70ce" # 第一条引用对象自己的 uid。
+        relation_role: "primary" # 这是正文主要讨论的对象之一，所以标成 primary。
+        target_domain: "training_plan" # 它引用的是训练计划域对象。
+        target_type: "plan_set" # 精确到某一条计划 set。
+        target_uid: "a13f0e9b8c42" # 指向 W3 D2 卧推的 top set。
+        source_page: "plan_detail" # 它最初来自计划详情页。
+        path:
+          - object_type: "training_plan" # 路径第一层指向整份计划。
+            object_uid: "7f21c8a4d0be" # 2026 春季卧推强化。
+            label: "2026 春季卧推强化" # 用户可读标签。
+          - object_type: "week" # 路径第二层定位到 W3。
+            object_uid: "44b0d8f1ca92" # W3 uid。
+            label: "W3" # 用户可见周标签。
+          - object_type: "plan_day" # 路径第三层定位到 D2。
+            object_uid: "2ed91f6a4c38" # W3 D2 uid。
+            label: "W3 D2 卧推日" # 训练日标题。
+          - object_type: "plan_exercise_block" # 路径第四层定位到卧推动作块。
+            object_uid: "5d9f3bc1a4e2" # 卧推块 uid。
+            label: "卧推" # 动作名。
+          - object_type: "plan_set" # 最后一层才是具体组。
+            object_uid: "a13f0e9b8c42" # Top set uid。
+            label: "Set 1 · Top set" # 组标签。
+        prompt_snapshot:
+          scope: "full_plan_day" # 对计划组的引用，给 AI 时至少应带完整训练日。
+          content_format: "markdown" # 使用 markdown 作为 AI 输入载体。
+          focus_hint: "当前引用焦点是 W3 D2 卧推 Set 1 · Top set。" # 告诉 AI 真正需要重点看的对象。
+          content: |
+            # 训练计划引用快照
+            计划：2026 春季卧推强化
+            训练日：W3 D2 卧推日
+
+            当前引用焦点：
+            >> 卧推 Set 1 · Top set
+            >> 112.5kg x3
+            >> 目标：预计 RPE 8.0
+
+            同训练日完整计划：
+            - 卧推
+              - Set 1 · Top set：112.5kg x3
+              - Set 2 · Backoff 1：100kg x5
+              - Set 3 · Backoff 2：100kg x5
+            - 哥本哈根平板支撑
+              - Set 1：自重 x10，每侧
+        visible_card:
+          badges: ["计划", "W3", "D2"] # UI 可以直接渲染这些 badge。
+          title: "W3 D2 卧推日" # 卡片主标题。
+          subtitle: "卧推 · Set 1" # 副标题。
+          body_lines:
+            - "112.5kg x3" # 第一行展示核心负荷。
+            - "目标：预计 RPE 8.0" # 第二行展示推测强度。
+            - "备注：Top set" # 第三行展示备注。
+          footer: "当前计划中的主项顶组" # 页脚解释这个对象是什么。
+          deep_link_label: "查看原计划组" # 回跳原对象按钮文案。
+        captured_at: "2026-04-03T10:05:00+08:00" # 这份引用快照被写入笔记的时间。
+      - uid: "d1a4bc890ef2" # 第二条引用对象自己的 uid。
+        relation_role: "secondary" # 这是拿来做对照的第二个计划对象，所以标成 secondary。
+        target_domain: "training_plan" # 仍然属于训练计划域。
+        target_type: "plan_day" # 这次只引用到训练日层级。
+        target_uid: "c31d4aa2f8b7" # 指向更早的 W2 D2 训练日。
+        source_page: "plan_detail" # 同样来自计划详情页。
+        path:
+          - object_type: "training_plan" # 第一层仍是整份计划。
+            object_uid: "7f21c8a4d0be" # 同一份计划。
+            label: "2026 春季卧推强化" # 用户可读标题。
+          - object_type: "week" # 第二层是 W2。
+            object_uid: "1f9d02ab77ce" # W2 uid。
+            label: "W2" # 用户可见周标签。
+          - object_type: "plan_day" # 第三层是 W2 D2。
+            object_uid: "c31d4aa2f8b7" # W2 D2 uid。
+            label: "W2 D2 卧推日" # 训练日标题。
+        prompt_snapshot:
+          scope: "full_plan_day" # 这里本身就是 plan_day，所以直接带完整训练日内容。
+          content_format: "markdown" # 用 markdown 即可。
+          focus_hint: "当前引用对象是 W2 D2 卧推日，用作和 W3 D2 的对照。" # 明确这是对照对象。
+          content: |
+            # 对照训练日计划快照
+            计划：2026 春季卧推强化
+            训练日：W2 D2 卧推日
+
+            作用：
+            >> 用作和 W3 D2 卧推日做同槽位对照
+
+            训练日摘要：
+            - 卧推主项：顶组后继续完成后续 backoff
+            - 当时没有记录到底部明显发软
+            - 可作为本条笔记的历史基线
+        visible_card:
+          badges: ["计划", "W2", "对照"] # UI 可见标签。
+          title: "W2 D2 卧推日" # 卡片主标题。
+          subtitle: "对照训练日" # 副标题说明用途。
+          body_lines:
+            - "用于和 W3 D2 比较卧推底部稳定性" # 第一行说明为什么引用它。
+            - "同槽位对照：D2" # 第二行把同槽位语义讲清楚。
+          footer: "同一中周期内的历史对照" # 页脚说明。
+          deep_link_label: "查看对照训练日" # 回跳按钮文案。
+        captured_at: "2026-04-03T10:08:00+08:00" # 第二个引用写入笔记的时间。
+
+  example_note_training_context_auto_linked:
+    uid: "4b8c2e1a97fd" # 第二条笔记自己的 uid。
+    note_type: "user_training_note" # 仍然是用户训练笔记。
+    state: "active" # 当前仍是活跃笔记。
+    title: "卧推第三组开始右肩发紧" # 标题直接概括训练中发生的问题。
+    body_markdown: | # 正文直接记录当时主观感觉。
+      训练中记录：
+
+      - 卧推第三组开始右肩前侧发紧
+      - 不到疼痛，但下放时会有顾虑
+      - 后续如果再次出现，优先下调并减少额外辅助量 # 这类内容很适合在训练中快速写下。
+    created_at: "2026-04-02T09:43:10+08:00" # 创建时间。
+    updated_at: "2026-04-02T09:43:10+08:00" # 这个例子里创建后未再次编辑，所以更新时间相同。
+    created_from: "training_context" # 说明它是在训练中工作台里创建的。
+    visibility: "private" # 仍默认私有。
+    pinned: false # 这里只做普通记录，不置顶。
+    tags: ["卧推", "右肩", "训练中"] # 标签强调它来自训练中异常。
+    references:
+      - uid: "5e7a90cb214f" # 第一条引用对象 uid。
+        relation_role: "auto_linked" # 训练中自动带入，所以角色是 auto_linked。
+        target_domain: "training_record" # 目标属于训练记录域。
+        target_type: "set" # 精确到某一组。
+        target_uid: "6ef3d17a0bb4" # 对应训练中的第二组或第三组实例，这里用已有 uid 示意。
+        source_page: "training_workbench" # 引用来自训练中工作台。
+        path:
+          - object_type: "training_record" # 第一层是训练会话。
+            object_uid: "8b4e07a5fc39" # 当前训练会话 uid。
+            label: "2026-04-02 · W3 D2 卧推日" # 用户可见标题。
+          - object_type: "exercise_block" # 第二层是卧推动作块。
+            object_uid: "5d9f3bc1a4e2" # 卧推块 uid。
+            label: "卧推" # 动作名。
+          - object_type: "set" # 第三层是具体组。
+            object_uid: "6ef3d17a0bb4" # 目标组 uid。
+            label: "Set 3" # 用户可见组标签。
+        prompt_snapshot:
+          scope: "full_training_record" # 对 training_record.set 的引用要尽量给整场训练。
+          content_format: "markdown" # 使用 markdown 表达完整训练快照。
+          focus_hint: "当前引用焦点是 2026-04-02 W3 D2 卧推 Set 3，训练中出现右肩发紧。" # 标明焦点组与问题。
+          content: |
+            # 训练记录引用快照
+            训练日期：2026-04-02
+            训练定位：W3 D2 卧推日
+
+            当前引用焦点：
+            >> 卧推 Set 3
+            >> 训练中出现右肩前侧发紧
+
+            本次完整训练记录：
+            - 卧推
+              - Set 1：112.5kg x3，Top set，按计划
+              - Set 2：100kg x5，Backoff 1，按计划
+              - Set 3：97.5kg x5，Backoff 2，下调完成
+              - Set 4：skipped
+              - Set 5：未执行
+            - 辅助动作
+              - 按计划完成
+        visible_card:
+          badges: ["训练记录", "自动关联", "训练中"] # UI 可以直接展示这些标签。
+          title: "2026-04-02 · W3 D2 卧推日" # 卡片主标题。
+          subtitle: "卧推 · Set 3" # 副标题。
+          body_lines:
+            - "训练中记录的问题组" # 第一行先说明这张卡为什么在这里。
+            - "问题：右肩前侧发紧" # 第二行展示当时的核心异常。
+            - "建议：若复现，优先下调" # 第三行保留用户自己的简短结论。
+          footer: "来源于训练中工作台自动关联" # 页脚说明它是自动补写的。
+          deep_link_label: "回到训练记录" # 深跳文案。
+        captured_at: "2026-04-02T09:43:10+08:00" # 自动关联的生成时间。
+      - uid: "0fd7c2a6b184" # 第二条引用对象 uid。
+        relation_role: "secondary" # 这是从计划侧带来的辅助引用，所以设为 secondary。
+        target_domain: "training_plan" # 目标域是训练计划。
+        target_type: "plan_set" # 精确到计划中的同一组。
+        target_uid: "8ab14f2dc931" # 这里明确使用计划侧自己的 set uid，而不是复用训练记录里的 set uid。
+        source_page: "training_workbench" # 仍然是从训练中的上下文创建。
+        path:
+          - object_type: "training_plan" # 第一层是训练计划。
+            object_uid: "7f21c8a4d0be" # 当前计划 uid。
+            label: "2026 春季卧推强化" # 计划标题。
+          - object_type: "plan_day" # 第二层是 W3 D2。
+            object_uid: "2ed91f6a4c38" # W3 D2 uid。
+            label: "W3 D2 卧推日" # 训练日标签。
+          - object_type: "plan_set" # 第三层才是计划组。
+            object_uid: "8ab14f2dc931" # 对应计划里的 Backoff 2 这组。
+            label: "Set 3 · Backoff 2" # 组标签。
+        prompt_snapshot:
+          scope: "full_plan_day" # 计划组引用给 AI 时仍然带完整训练日更安全。
+          content_format: "markdown" # markdown 更适合后续直接插入 prompt。
+          focus_hint: "当前引用焦点是 W3 D2 卧推 Set 3 · Backoff 2，用于和训练中实际异常对照。" # 明确用途。
+          content: |
+            # 计划对照快照
+            计划：2026 春季卧推强化
+            训练日：W3 D2 卧推日
+
+            当前引用焦点：
+            >> 卧推 Set 3 · Backoff 2
+            >> 原计划：100kg x5
+
+            同训练日完整计划：
+            - 卧推
+              - Set 1：112.5kg x3
+              - Set 2：100kg x5
+              - Set 3：100kg x5
+            - 哥本哈根平板支撑
+              - Set 1：自重 x10，每侧
+        visible_card:
+          badges: ["计划", "对照"] # UI 上作为对照卡显示。
+          title: "W3 D2 卧推日" # 主标题。
+          subtitle: "Set 3 · Backoff 2" # 副标题。
+          body_lines:
+            - "原计划中的第三组" # 第一行说明来源。
+            - "用于和训练中实际异常做对比" # 第二行说明引用目的。
+          footer: "与当前训练记录成对出现" # 页脚说明。
+          deep_link_label: "查看原计划组" # 跳转文案。
+        captured_at: "2026-04-02T09:43:10+08:00" # 创建时间与笔记相同。
+
+  example_note_archived_with_note_ref:
+    uid: "c0d4ae82b951" # 第三条笔记 uid。
+    note_type: "user_training_note" # 仍然是用户训练笔记。
+    state: "archived" # archived 表示它保留给历史检索，但不再放在默认活跃列表前面。
+    title: "右肩问题阶段性结论" # 标题表达这是一条后续总结。
+    body_markdown: | # 正文是对前面几条笔记和训练记录的阶段总结。
+      目前判断：
+
+      - 更像疲劳和稳定性问题，不像急性伤
+      - 充分热身后可以明显减轻
+      - 暂时不需要单独停卧推，只需控制后半段剂量
+
+      这条结论保留归档，后续再出现时可重新引用。 # 归档笔记很适合保存这种阶段结论。
+    created_at: "2026-04-20T20:10:00+08:00" # 创建时间。
+    updated_at: "2026-04-20T20:40:00+08:00" # 整理完阶段结论后的更新时间。
+    created_from: "manual" # 这是用户手动整理的总结，不是训练中即时记录。
+    visibility: "private" # 仍为私有。
+    pinned: false # 归档后通常不置顶。
+    tags: ["阶段总结", "右肩", "归档"] # 用标签强调它是一条归档结论。
+    references:
+      - uid: "3f09b4c2de71" # 这条引用对象自己的 uid。
+        relation_role: "related_note" # 它引用的是一条相关旧笔记。
+        target_domain: "note" # 目标域是 note。
+        target_type: "note" # 目标类型也是 note。
+        target_uid: "91f0b3d7ae24" # 指向第一条例子里的对照笔记。
+        source_page: "notes_user" # 来自用户笔记页。
+        path:
+          - object_type: "note" # 指向 note 时路径只需要 note 本身。
+            object_uid: "91f0b3d7ae24" # 目标笔记 uid。
+            label: "卧推底部发软对照" # 目标笔记标题。
+        prompt_snapshot:
+          scope: "full_note" # 这里引用的是一条旧笔记，所以给 AI 时仍应优先放全文。
+          content_format: "markdown" # 笔记原文使用 markdown。
+          focus_hint: "当前引用对象是整篇用户笔记《卧推底部发软对照》，它是当前阶段结论的历史依据。" # 明确引用目的。
+          content: |
+            # 用户笔记全文
+            标题：卧推底部发软对照
+
+            对比了最近两次同槽位卧推。
+
+            - W2 D2：下放稳定，但起推略慢
+            - W3 D2：第三组后底部明显发软
+            - 猜测与肩胛稳定和疲劳累积同时有关
+
+            下次开始训练前，想先看一眼这个问题有没有再次出现。
+        visible_card:
+          badges: ["笔记", "历史依据"] # UI 上显示成一条历史依据卡。
+          title: "卧推底部发软对照" # 卡片标题。
+          subtitle: "用户笔记" # 副标题。
+          body_lines:
+            - "比较了 W2 D2 与 W3 D2 的卧推差异" # 第一行摘要。
+            - "被当前阶段总结引用为历史依据" # 第二行说明它为什么再次出现。
+          footer: "点击可回看原笔记" # 页脚说明。
+          deep_link_label: "查看历史笔记" # 跳转文案。
+        captured_at: "2026-04-20T20:15:00+08:00" # 这条旧笔记被再次引用的时间。
