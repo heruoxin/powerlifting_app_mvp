@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +8,7 @@ import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/set_edit_dialog.dart';
 import '../../widgets/add_exercise_dialog.dart';
+import 'training_completion_screen.dart';
 
 /// Full-screen training workbench for active session execution.
 class TrainingWorkbenchScreen extends StatefulWidget {
@@ -142,6 +142,9 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
   }
 
   Future<void> _onFinishTraining(BuildContext context) async {
+    final appState = context.read<AppState>();
+    final navigator = Navigator.of(context);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -161,9 +164,21 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
     );
 
     if (confirmed == true && mounted) {
-      final appState = context.read<AppState>();
+      // Capture the record before finishing (to show in completion screen)
+      final finishedRecord = appState.activeTraining;
       await appState.finishTraining();
-      if (mounted) Navigator.of(context).pop();
+      if (mounted && finishedRecord != null) {
+        navigator.pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => TrainingCompletionScreen(
+              record: finishedRecord.copyWith(
+                state: 'completed',
+                finishedAt: DateTime.now().toIso8601String(),
+              ),
+            ),
+          ),
+        );
+      }
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../models/plan_models.dart';
 import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
+import '../training/training_completion_screen.dart';
 import 'plan_day_card.dart';
 
 class TimelineView extends StatefulWidget {
@@ -334,6 +335,13 @@ class _TimelineViewState extends State<TimelineView> {
           weekLabel: weekLabel,
           records: _appState.trainingRecords,
           filterCategory: _filterCategory == '全部' ? null : _filterCategory,
+          onTapCompleted: (record) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => TrainingCompletionScreen(record: record),
+              ),
+            );
+          },
         );
       },
     );

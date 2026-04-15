@@ -6,8 +6,6 @@ import 'package:intl/intl.dart';
 import '../../models/ai_topic.dart';
 import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/glass_card.dart';
-
 /// AI Coach chat screen with topic drawer and message display.
 class CoachScreen extends StatefulWidget {
   const CoachScreen({super.key});
@@ -117,7 +115,7 @@ class _CoachScreenState extends State<CoachScreen> {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && mounted) {
       final appState = context.read<AppState>();
       await appState.deleteTopic(uid);
       if (_activeTopicUid == uid) {

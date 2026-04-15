@@ -12,12 +12,14 @@ class PlanDayCard extends StatelessWidget {
     required this.weekLabel,
     required this.records,
     this.filterCategory,
+    this.onTapCompleted,
   });
 
   final PlanDay day;
   final String weekLabel;
   final List<TrainingRecord> records;
   final String? filterCategory;
+  final ValueChanged<TrainingRecord>? onTapCompleted;
 
   String get _dayStatus {
     final record = records.where(
@@ -36,6 +38,16 @@ class PlanDayCard extends StatelessWidget {
     return GlassCard(
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.all(14),
+      onTap: status == 'completed' && onTapCompleted != null
+          ? () {
+              final record = records.firstWhere(
+                (r) =>
+                    r.sourcePlanDayUid == day.uid && r.state == 'completed',
+                orElse: () => records.first,
+              );
+              onTapCompleted!(record);
+            }
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
