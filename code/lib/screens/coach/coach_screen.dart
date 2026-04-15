@@ -357,6 +357,9 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   Widget _buildWelcome() {
+    final appState = context.read<AppState>();
+    final suggestions = appState.getSuggestedQuestions();
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -394,22 +397,33 @@ class _CoachScreenState extends State<CoachScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Quick actions
+            // Suggested questions
             Wrap(
               spacing: 8,
               runSpacing: 8,
               alignment: WrapAlignment.center,
-              children: [
-                _quickAction('分析近期训练', Icons.analytics_outlined),
-                _quickAction('调整下周计划', Icons.calendar_month),
-                _quickAction('恢复建议', Icons.healing),
-                _quickAction('技术要点', Icons.school),
-              ],
+              children: suggestions.map((q) {
+                return _quickAction(q, _iconForQuestion(q));
+              }).toList(),
             ),
           ],
         ),
       ),
     );
+  }
+
+  IconData _iconForQuestion(String question) {
+    if (question.contains('分析') || question.contains('表现')) {
+      return Icons.analytics_outlined;
+    }
+    if (question.contains('计划') || question.contains('调整')) {
+      return Icons.calendar_month;
+    }
+    if (question.contains('强度') || question.contains('进展')) {
+      return Icons.trending_up;
+    }
+    if (question.contains('训练')) return Icons.fitness_center;
+    return Icons.chat_bubble_outline;
   }
 
   Widget _quickAction(String label, IconData icon) {

@@ -286,8 +286,15 @@ class _NoteCard extends StatelessWidget {
 
 // ── Coach Notes Tab ──
 
-class _CoachNotesTab extends StatelessWidget {
+class _CoachNotesTab extends StatefulWidget {
   const _CoachNotesTab();
+
+  @override
+  State<_CoachNotesTab> createState() => _CoachNotesTabState();
+}
+
+class _CoachNotesTabState extends State<_CoachNotesTab> {
+  bool _showSecondary = false;
 
   @override
   Widget build(BuildContext context) {
@@ -310,36 +317,126 @@ class _CoachNotesTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
+        // Explanatory banner per design spec
         GlassCard(
-          color: AppTheme.accentBlue.withValues(alpha: 0.05),
+          color: const Color(0xFFF5F3ED),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryGold.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.auto_awesome,
+                        size: 16, color: AppTheme.primaryGold),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'AI 教练笔记说明',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                '这些内容由 AI 教练自动整理，不等同于你的原始笔记。'
+                'AI 会在以下时机更新这些记忆：',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _buildTimingChip('训练完成后'),
+                  _buildTimingChip('训练中事件后'),
+                  _buildTimingChip('周期阶段结束后'),
+                  _buildTimingChip('重要教练对话后'),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Primary files: diary + coach_observation
+        const SectionHeader(title: '默认展示'),
+        const SizedBox(height: 6),
+        ...primary.map((f) => _MemoryFileCard(file: f)),
+
+        // Secondary files: expandable
+        const SizedBox(height: 16),
+        GestureDetector(
+          onTap: () => setState(() => _showSecondary = !_showSecondary),
           child: Row(
             children: [
-              Icon(Icons.info_outline,
-                  size: 18,
-                  color: AppTheme.accentBlue.withValues(alpha: 0.7)),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'AI教练的记忆文件，记录了对你训练的观察和理解。这些文件由AI自动维护，你也可以手动编辑。',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                    height: 1.5,
-                  ),
+              const Text(
+                '其他记忆文件',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                _showSecondary
+                    ? Icons.expand_less
+                    : Icons.expand_more,
+                size: 20,
+                color: AppTheme.textTertiary,
+              ),
+              const Spacer(),
+              Text(
+                '${secondary.length} 个文件',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textTertiary,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        const SectionHeader(title: '默认展示'),
-        const SizedBox(height: 6),
-        ...primary.map((f) => _MemoryFileCard(file: f)),
-        const SizedBox(height: 16),
-        const SectionHeader(title: '更多记忆'),
-        const SizedBox(height: 6),
-        ...secondary.map((f) => _MemoryFileCard(file: f)),
+        if (_showSecondary) ...[
+          const SizedBox(height: 6),
+          ...secondary.map((f) => _MemoryFileCard(file: f)),
+        ],
       ],
+    );
+  }
+
+  Widget _buildTimingChip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryGold.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.primaryGold.withValues(alpha: 0.2),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: AppTheme.primaryGold.withValues(alpha: 0.85),
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 }
