@@ -19,7 +19,6 @@ class CoachScreen extends StatefulWidget {
 
 class _CoachScreenState extends State<CoachScreen>
     with SingleTickerProviderStateMixin {
-  String? _activeTopicUid;
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _isSending = false;
@@ -36,9 +35,9 @@ class _CoachScreenState extends State<CoachScreen>
     )..repeat();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final s = context.read<AppState>();
-      if (s.topics.isNotEmpty) {
+      if (s.currentCoachTopicUid == null && s.topics.isNotEmpty) {
         final sorted = _sortedTopics(s.topics);
-        setState(() => _activeTopicUid = sorted.first.uid);
+        s.setCurrentCoachTopic(sorted.first.uid);
       }
     });
     _msgCtrl.addListener(() => setState(() {}));
@@ -61,10 +60,12 @@ class _CoachScreenState extends State<CoachScreen>
   }
 
   AiTopic? get _activeTopic {
-    if (_activeTopicUid == null) return null;
-    final topics = context.read<AppState>().topics;
+    final appState = context.read<AppState>();
+    final activeUid = appState.currentCoachTopicUid;
+    if (activeUid == null) return null;
+    final topics = appState.topics;
     for (final t in topics) {
-      if (t.uid == _activeTopicUid) return t;
+      if (t.uid == activeUid) return t;
     }
     return null;
   }
@@ -90,11 +91,9 @@ class _CoachScreenState extends State<CoachScreen>
     if (text.isEmpty || _isSending) return;
 
     final appState = context.read<AppState>();
-    if (_activeTopicUid == null) {
-      final title =
-          text.length > 20 ? '${text.substring(0, 20)}...' : text;
-      final topic = await appState.createNewTopic(title: title);
-      setState(() => _activeTopicUid = topic.uid);
+    if (appState.currentCoachTopicUid == null) {
+      final title = text.length > 20 ? '${text.substring(0, 20)}...' : text;
+      await appState.createNewTopic(title: title);
     }
 
     _msgCtrl.clear();
@@ -105,7 +104,7 @@ class _CoachScreenState extends State<CoachScreen>
     _scrollToBottom();
 
     try {
-      await appState.sendAiMessage(_activeTopicUid!, text);
+      await appState.sendAiMessage(appState.currentCoachTopicUid!, text);
     } catch (e) {
       if (mounted) setState(() => _errorMsg = '发送失败：$e');
     } finally {
@@ -115,10 +114,8 @@ class _CoachScreenState extends State<CoachScreen>
   }
 
   Future<void> _createNewTopic() async {
-    final topic =
-        await context.read<AppState>().createNewTopic(title: '新对话');
+    await context.read<AppState>().createNewTopic(title: '新对话');
     setState(() {
-      _activeTopicUid = topic.uid;
       _drawerOpen = false;
     });
   }
@@ -145,14 +142,7 @@ class _CoachScreenState extends State<CoachScreen>
     if (ok != true || !mounted) return;
     final appState = context.read<AppState>();
     await appState.deleteTopic(uid);
-    if (_activeTopicUid == uid) {
-      setState(() {
-        _activeTopicUid =
-            appState.topics.isNotEmpty ? appState.topics.first.uid : null;
-      });
-    } else {
-      setState(() {});
-    }
+    setState(() {});
   }
 
   String _relativeDate(String iso) {
@@ -250,17 +240,24 @@ class _CoachScreenState extends State<CoachScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('电子教练',
-                    style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary)),
+                const Text(
+                  '电子教练',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
                 if (topic != null)
-                  Text(topic.title,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppTheme.textTertiary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    topic.title,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textTertiary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
@@ -289,8 +286,8 @@ class _CoachScreenState extends State<CoachScreen>
           color: highlight
               ? AppTheme.primaryGold.withValues(alpha: 0.15)
               : (color != null
-                  ? color.withValues(alpha: 0.10)
-                  : Colors.transparent),
+                    ? color.withValues(alpha: 0.10)
+                    : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 22, color: color ?? AppTheme.textPrimary),
@@ -303,8 +300,17 @@ class _CoachScreenState extends State<CoachScreen>
   Widget _buildBody(AppState appState, AiTopic? topic) {
     if (appState.topics.isEmpty) return _buildWelcomeScreen(appState);
     if (topic == null) return _buildWelcomeScreen(appState);
-    if (topic.messages.isEmpty) return _buildEmptyTopic(appState);
-    return _buildMessageList(topic);
+    return Column(
+      children: [
+        if (topic.contextReferences.isNotEmpty)
+          _buildContextReferenceStrip(topic.contextReferences),
+        Expanded(
+          child: topic.messages.isEmpty
+              ? _buildEmptyTopic(appState, topic.contextReferences)
+              : _buildMessageList(topic),
+        ),
+      ],
+    );
   }
 
   // ── Welcome (no topics) ──
@@ -324,29 +330,41 @@ class _CoachScreenState extends State<CoachScreen>
                 color: AppTheme.primaryGold.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.smart_toy,
-                  size: 36, color: AppTheme.primaryGold),
+              child: const Icon(
+                Icons.smart_toy,
+                size: 36,
+                color: AppTheme.primaryGold,
+              ),
             ),
             const SizedBox(height: 20),
-            const Text('电子教练',
-                style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary)),
+            const Text(
+              '电子教练',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
             const Text(
               '我是你的力量举教练AI，可以帮你分析训练数据、\n调整计划、解答训练问题。',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontSize: 13, color: AppTheme.textSecondary, height: 1.6),
+                fontSize: 13,
+                color: AppTheme.textSecondary,
+                height: 1.6,
+              ),
             ),
             const SizedBox(height: 28),
             if (suggestions.isNotEmpty) ...[
-              const Text('试试这些问题：',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textTertiary)),
+              const Text(
+                '试试这些问题：',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -365,7 +383,7 @@ class _CoachScreenState extends State<CoachScreen>
 
   // ── Empty topic (has topic but no messages) ──
 
-  Widget _buildEmptyTopic(AppState appState) {
+  Widget _buildEmptyTopic(AppState appState, List<ContextReference> refs) {
     final suggestions = appState.getSuggestedQuestions();
     return Center(
       child: SingleChildScrollView(
@@ -373,19 +391,43 @@ class _CoachScreenState extends State<CoachScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.chat_outlined,
-                size: 48,
-                color: AppTheme.primaryGold.withValues(alpha: 0.5)),
+            Icon(
+              Icons.chat_outlined,
+              size: 48,
+              color: AppTheme.primaryGold.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
-            const Text('开始新的对话',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary)),
+            const Text(
+              '开始新的对话',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
-            const Text('向教练提问，或选择以下建议：',
-                style:
-                    TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+            const Text(
+              '向教练提问，或选择以下建议：',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            ),
+            if (refs.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                '已带入上下文',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: refs.map(_buildContextChip).toList(),
+              ),
+            ],
             const SizedBox(height: 20),
             if (suggestions.isNotEmpty)
               Wrap(
@@ -417,11 +459,14 @@ class _CoachScreenState extends State<CoachScreen>
             Icon(icon, size: 16, color: AppTheme.primaryGold),
             const SizedBox(width: 6),
             Flexible(
-              child: Text(label,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textPrimary)),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
             ),
           ],
         ),
@@ -446,6 +491,98 @@ class _CoachScreenState extends State<CoachScreen>
     );
   }
 
+  Widget _buildContextReferenceStrip(List<ContextReference> refs) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryGold.withValues(alpha: 0.06),
+        border: Border(
+          bottom: BorderSide(
+            color: AppTheme.primaryGold.withValues(alpha: 0.16),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: refs.map(_buildContextChip).toList(),
+      ),
+    );
+  }
+
+  Widget _buildContextChip(ContextReference ref) {
+    final label = ref.displayLabel?.trim().isNotEmpty == true
+        ? ref.displayLabel!
+        : _contextTypeLabel(ref.type);
+    final preview = ref.previewText?.trim();
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 280),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.primaryGold.withValues(alpha: 0.18),
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _contextTypeLabel(ref.type),
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.primaryGold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          if (preview != null && preview.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              preview,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _contextTypeLabel(String type) {
+    switch (type) {
+      case 'training_record':
+        return '训练';
+      case 'note':
+        return '笔记';
+      case 'memory_file':
+        return '教练笔记';
+      default:
+        return '上下文';
+    }
+  }
+
   Widget _buildMessageBubble(AiMessage msg) {
     final isUser = msg.role == 'user';
     final time = _messageTime(msg.createdAt);
@@ -453,25 +590,26 @@ class _CoachScreenState extends State<CoachScreen>
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
-        crossAxisAlignment:
-            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isUser
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment:
-                isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            mainAxisAlignment: isUser
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
             children: [
-              if (!isUser) ...[
-                _aiAvatar(),
-                const SizedBox(width: 8),
-              ],
+              if (!isUser) ...[_aiAvatar(), const SizedBox(width: 8)],
               Flexible(
                 child: Container(
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.75,
                   ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: isUser
                         ? AppTheme.primaryGold.withValues(alpha: 0.15)
@@ -484,18 +622,21 @@ class _CoachScreenState extends State<CoachScreen>
                     ),
                     border: isUser
                         ? Border.all(
-                            color:
-                                AppTheme.primaryGold.withValues(alpha: 0.25),
-                            width: 0.5)
+                            color: AppTheme.primaryGold.withValues(alpha: 0.25),
+                            width: 0.5,
+                          )
                         : null,
                     boxShadow: isUser ? null : AppTheme.subtleShadow,
                   ),
                   child: isUser
-                      ? Text(msg.content,
+                      ? Text(
+                          msg.content,
                           style: const TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textPrimary,
-                              height: 1.5))
+                            fontSize: 14,
+                            color: AppTheme.textPrimary,
+                            height: 1.5,
+                          ),
+                        )
                       : MarkdownBody(
                           data: msg.content,
                           selectable: true,
@@ -513,9 +654,13 @@ class _CoachScreenState extends State<CoachScreen>
                 left: isUser ? 0 : 40,
                 right: isUser ? 8 : 0,
               ),
-              child: Text(time,
-                  style: const TextStyle(
-                      fontSize: 10, color: AppTheme.textTertiary)),
+              child: Text(
+                time,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
             ),
         ],
       ),
@@ -530,21 +675,23 @@ class _CoachScreenState extends State<CoachScreen>
         color: AppTheme.primaryGold.withValues(alpha: 0.15),
         shape: BoxShape.circle,
       ),
-      child:
-          const Icon(Icons.smart_toy, size: 18, color: AppTheme.primaryGold),
+      child: const Icon(Icons.smart_toy, size: 18, color: AppTheme.primaryGold),
     );
   }
 
   MarkdownStyleSheet _mdStyle() {
     return MarkdownStyleSheet(
       p: const TextStyle(
-          fontSize: 14, color: AppTheme.textPrimary, height: 1.5),
+        fontSize: 14,
+        color: AppTheme.textPrimary,
+        height: 1.5,
+      ),
       strong: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: AppTheme.textPrimary),
-      listBullet:
-          const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: AppTheme.textPrimary,
+      ),
+      listBullet: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
       code: TextStyle(
         fontSize: 13,
         color: AppTheme.textPrimary,
@@ -557,7 +704,9 @@ class _CoachScreenState extends State<CoachScreen>
       blockquoteDecoration: BoxDecoration(
         border: Border(
           left: BorderSide(
-              color: AppTheme.primaryGold.withValues(alpha: 0.4), width: 3),
+            color: AppTheme.primaryGold.withValues(alpha: 0.4),
+            width: 3,
+          ),
         ),
       ),
     );
@@ -602,8 +751,9 @@ class _CoachScreenState extends State<CoachScreen>
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryGold
-                                .withValues(alpha: 0.3 + 0.5 * scale),
+                            color: AppTheme.primaryGold.withValues(
+                              alpha: 0.3 + 0.5 * scale,
+                            ),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -631,9 +781,10 @@ class _CoachScreenState extends State<CoachScreen>
           const Icon(Icons.error_outline, size: 16, color: AppTheme.dangerRed),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(_errorMsg ?? '',
-                style: const TextStyle(
-                    fontSize: 12, color: AppTheme.dangerRed)),
+            child: Text(
+              _errorMsg ?? '',
+              style: const TextStyle(fontSize: 12, color: AppTheme.dangerRed),
+            ),
           ),
           GestureDetector(
             onTap: () => setState(() => _errorMsg = null),
@@ -649,12 +800,18 @@ class _CoachScreenState extends State<CoachScreen>
   Widget _buildInputArea() {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          12, 8, 12, max(MediaQuery.of(context).padding.bottom, 8.0)),
+        12,
+        8,
+        12,
+        max(MediaQuery.of(context).padding.bottom, 8.0),
+      ),
       decoration: BoxDecoration(
         color: AppTheme.cardWhite,
         border: Border(
           top: BorderSide(
-              color: Colors.black.withValues(alpha: 0.05), width: 0.5),
+            color: Colors.black.withValues(alpha: 0.05),
+            width: 0.5,
+          ),
         ),
       ),
       child: Row(
@@ -672,8 +829,10 @@ class _CoachScreenState extends State<CoachScreen>
                 decoration: const InputDecoration(
                   hintText: '输入消息...',
                   border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                 ),
                 style: const TextStyle(fontSize: 14),
                 maxLines: 4,
@@ -690,14 +849,16 @@ class _CoachScreenState extends State<CoachScreen>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _canSend ? AppTheme.primaryGold : const Color(0xFFE0E0E0),
+                color: _canSend
+                    ? AppTheme.primaryGold
+                    : const Color(0xFFE0E0E0),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.send_rounded,
-                  size: 20,
-                  color: _canSend
-                      ? AppTheme.textPrimary
-                      : AppTheme.textTertiary),
+              child: Icon(
+                Icons.send_rounded,
+                size: 20,
+                color: _canSend ? AppTheme.textPrimary : AppTheme.textTertiary,
+              ),
             ),
           ),
         ],
@@ -742,23 +903,30 @@ class _CoachScreenState extends State<CoachScreen>
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                       child: Row(
                         children: [
-                          const Text('对话列表',
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.textPrimary)),
+                          const Text(
+                            '对话列表',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
                           const Spacer(),
                           GestureDetector(
                             onTap: _createNewTopic,
                             child: Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryGold
-                                    .withValues(alpha: 0.12),
+                                color: AppTheme.primaryGold.withValues(
+                                  alpha: 0.12,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.add,
-                                  size: 20, color: AppTheme.primaryGold),
+                              child: const Icon(
+                                Icons.add,
+                                size: 20,
+                                color: AppTheme.primaryGold,
+                              ),
                             ),
                           ),
                         ],
@@ -769,21 +937,31 @@ class _CoachScreenState extends State<CoachScreen>
                     Expanded(
                       child: sorted.isEmpty
                           ? const Center(
-                              child: Text('暂无对话',
-                                  style: TextStyle(
-                                      color: AppTheme.textTertiary)))
+                              child: Text(
+                                '暂无对话',
+                                style: TextStyle(color: AppTheme.textTertiary),
+                              ),
+                            )
                           : ListView(
                               padding: EdgeInsets.zero,
                               children: [
                                 if (recent.isNotEmpty) ...[
                                   _sectionHeader('最近'),
                                   ...recent.map(
-                                      (t) => _topicTile(t, t.uid == _activeTopicUid)),
+                                    (t) => _topicTile(
+                                      t,
+                                      t.uid == appState.currentCoachTopicUid,
+                                    ),
+                                  ),
                                 ],
                                 if (earlier.isNotEmpty) ...[
                                   _sectionHeader('更早'),
                                   ...earlier.map(
-                                      (t) => _topicTile(t, t.uid == _activeTopicUid)),
+                                    (t) => _topicTile(
+                                      t,
+                                      t.uid == appState.currentCoachTopicUid,
+                                    ),
+                                  ),
                                 ],
                               ],
                             ),
@@ -801,12 +979,15 @@ class _CoachScreenState extends State<CoachScreen>
   Widget _sectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-      child: Text(title,
-          style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textTertiary,
-              letterSpacing: 0.5)),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textTertiary,
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 
@@ -820,8 +1001,7 @@ class _CoachScreenState extends State<CoachScreen>
           : Colors.transparent,
       child: ListTile(
         dense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
         title: Text(
           topic.title.isNotEmpty ? topic.title : '未命名对话',
           style: TextStyle(
@@ -832,20 +1012,24 @@ class _CoachScreenState extends State<CoachScreen>
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: Text('$count 条消息 · $date',
-            style: const TextStyle(
-                fontSize: 11, color: AppTheme.textTertiary)),
+        subtitle: Text(
+          '$count 条消息 · $date',
+          style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+        ),
         trailing: GestureDetector(
           onTap: () => _deleteTopic(topic.uid),
           child: const Padding(
             padding: EdgeInsets.all(4),
-            child: Icon(Icons.delete_outline,
-                size: 18, color: AppTheme.textTertiary),
+            child: Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: AppTheme.textTertiary,
+            ),
           ),
         ),
         onTap: () {
+          context.read<AppState>().setCurrentCoachTopic(topic.uid);
           setState(() {
-            _activeTopicUid = topic.uid;
             _drawerOpen = false;
           });
         },

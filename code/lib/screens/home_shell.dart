@@ -58,45 +58,63 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   void _navigateToWorkbench(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const TrainingWorkbenchScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const TrainingWorkbenchScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final currentIndex = appState.currentTabIndex;
+    final pageView = PageView(
+      controller: _pageController,
+      onPageChanged: _onPageChanged,
+      physics: MediaQuery.of(context).size.width >= 1024
+          ? const NeverScrollableScrollPhysics()
+          : const BouncingScrollPhysics(),
+      children: const [
+        InfoScreen(),
+        PlanScreen(),
+        NotesScreen(),
+        CoachScreen(),
+      ],
+    );
 
     return Scaffold(
-      body: Column(
-        children: [
-          if (appState.activeTraining != null)
-            TrainingStatusBar(
-              onTap: () => _navigateToWorkbench(context),
-            ),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: _onPageChanged,
-              children: const [
-                InfoScreen(),
-                PlanScreen(),
-                NotesScreen(),
-                CoachScreen(),
-              ],
-            ),
-          ),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isLargeScreen = constraints.maxWidth >= 1024;
+          return Column(
+            children: [
+              if (appState.activeTraining != null)
+                TrainingStatusBar(onTap: () => _navigateToWorkbench(context)),
+              Expanded(
+                child: isLargeScreen
+                    ? Row(
+                        children: [
+                          _GlassSideRail(
+                            currentIndex: currentIndex,
+                            onTap: _onTabTapped,
+                            tabs: _tabs,
+                          ),
+                          Expanded(child: pageView),
+                        ],
+                      )
+                    : pageView,
+              ),
+            ],
+          );
+        },
       ),
       extendBody: true,
-      bottomNavigationBar: _GlassBottomBar(
-        currentIndex: currentIndex,
-        onTap: _onTabTapped,
-        tabs: _tabs,
-      ),
+      bottomNavigationBar: MediaQuery.of(context).size.width >= 1024
+          ? null
+          : _GlassBottomBar(
+              currentIndex: currentIndex,
+              onTap: _onTabTapped,
+              tabs: _tabs,
+            ),
     );
   }
 }
@@ -167,8 +185,9 @@ class _GlassBottomBar extends StatelessWidget {
                           tab.label,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight:
-                                selected ? FontWeight.w600 : FontWeight.w400,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                             color: selected
                                 ? AppTheme.primaryGold
                                 : AppTheme.textTertiary,
@@ -181,6 +200,86 @@ class _GlassBottomBar extends StatelessWidget {
               );
             }),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassSideRail extends StatelessWidget {
+  const _GlassSideRail({
+    required this.currentIndex,
+    required this.onTap,
+    required this.tabs,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  final List<_TabDef> tabs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 104,
+      decoration: BoxDecoration(
+        color: AppTheme.cardWhite.withValues(alpha: 0.9),
+        border: Border(
+          right: BorderSide(
+            color: Colors.black.withValues(alpha: 0.05),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: NavigationRail(
+          selectedIndex: currentIndex,
+          onDestinationSelected: onTap,
+          labelType: NavigationRailLabelType.all,
+          backgroundColor: Colors.transparent,
+          indicatorColor: AppTheme.primaryGold.withValues(alpha: 0.16),
+          selectedIconTheme: const IconThemeData(
+            color: AppTheme.primaryGold,
+            size: 24,
+          ),
+          unselectedIconTheme: const IconThemeData(
+            color: AppTheme.textTertiary,
+            size: 22,
+          ),
+          selectedLabelTextStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+          unselectedLabelTextStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textTertiary,
+          ),
+          leading: Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 12),
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGold.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.fitness_center_rounded,
+                color: AppTheme.primaryGold,
+                size: 24,
+              ),
+            ),
+          ),
+          destinations: [
+            for (var i = 0; i < tabs.length; i++)
+              NavigationRailDestination(
+                icon: Icon(tabs[i].outlinedIcon),
+                selectedIcon: Icon(tabs[i].filledIcon),
+                label: Text(tabs[i].label),
+              ),
+          ],
         ),
       ),
     );
