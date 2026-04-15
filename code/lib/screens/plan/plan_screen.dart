@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
+import '../training/training_workbench_screen.dart';
 import 'timeline_view.dart';
 import 'calendar_view.dart';
 
@@ -102,8 +103,10 @@ class _PlanScreenState extends State<PlanScreen> {
         final nextDay = appState.getNextPlanDay();
         if (nextDay != null) {
           appState.startTraining(planDay: nextDay);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('训练已开始')),
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const TrainingWorkbenchScreen(),
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
