@@ -10,6 +10,7 @@ import 'coach/coach_screen.dart';
 import 'info/info_screen.dart';
 import 'notes/notes_screen.dart';
 import 'plan/plan_screen.dart';
+import 'training/training_workbench_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -57,7 +58,11 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   void _navigateToWorkbench(BuildContext context) {
-    // TODO: Navigate to training workbench screen
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const TrainingWorkbenchScreen(),
+      ),
+    );
   }
 
   @override
