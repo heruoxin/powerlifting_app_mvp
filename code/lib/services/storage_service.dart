@@ -258,4 +258,18 @@ class StorageService {
       await box.put(key, jsonEncode(map));
     }
   }
+
+  /// Clear all persisted data across all boxes.
+  Future<void> clearAll() async {
+    await Future.wait([
+      Hive.box<String>(_recordsBox).clear(),
+      Hive.box<String>(_mesocyclesBox).clear(),
+      Hive.box<String>(_notesBox).clear(),
+      Hive.box<String>(_topicsBox).clear(),
+      Hive.box<String>(_memoryBox).clear(),
+      Hive.box<String>(_profilesBox).clear(),
+      Hive.box<String>(_settingsBox).clear(),
+      Hive.box<String>(_exerciseTypesBox).clear(),
+    ]);
+  }
 }

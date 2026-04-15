@@ -104,16 +104,38 @@ class AppState extends ChangeNotifier {
     settings = demoSettings;
   }
 
+  /// Reset all data and re-seed with demo data.
+  Future<void> resetWithDemoData() async {
+    await _storage.clearAll();
+    activeTraining = null;
+    await _seedDemoData();
+    await _storage.initDefaultMemoryFiles();
+    memoryFiles = await _storage.getAllMemoryFiles();
+    exerciseTypes = await _storage.getExerciseTypes();
+    notifyListeners();
+  }
+
   // ── Training Lifecycle ──
 
   Future<void> startTraining({
     PlanDay? planDay,
     PlanMesocycle? mesocycle,
   }) async {
+    // Don't allow starting a new training if one is active
+    if (activeTraining != null) return;
+
     final blocks = <ExerciseBlock>[];
 
     if (planDay != null) {
       for (final item in planDay.exerciseItems) {
+        // Find display name from exercise types catalog
+        final exerciseType = exerciseTypes
+            .where((et) => et.key == item.exerciseTypeKey)
+            .firstOrNull;
+        final displayName = item.displayNameOverride ??
+            exerciseType?.displayName ??
+            item.exerciseTypeKey;
+
         final sets = item.sets.map((ps) {
           SetValues? baseline;
           final t = ps.target;
@@ -147,7 +169,7 @@ class AppState extends ChangeNotifier {
         }).toList();
 
         blocks.add(ExerciseBlock(
-          name: item.displayNameOverride ?? item.exerciseTypeKey,
+          name: displayName,
           exerciseCategory: _categoryLabel(item.exerciseTypeKey),
           sourceType: 'planned',
           displayColumns: _displayCols(item.recordProfileKey),
@@ -156,10 +178,26 @@ class AppState extends ChangeNotifier {
       }
     }
 
+    // For open sessions, find max OS number to avoid duplicates
+    String slotLabel;
+    if (planDay != null) {
+      slotLabel = planDay.label;
+    } else {
+      int maxOs = 0;
+      for (final r in trainingRecords) {
+        final match = RegExp(r'^OS(\d+)$').firstMatch(r.daySlotLabel);
+        if (match != null) {
+          final n = int.tryParse(match.group(1)!) ?? 0;
+          if (n > maxOs) maxOs = n;
+        }
+      }
+      slotLabel = 'OS${maxOs + 1}';
+    }
+
     final record = TrainingRecord(
       state: 'in_progress',
-      dayLabel: planDay?.dayTitle,
-      daySlotLabel: planDay?.label ?? 'D1',
+      dayLabel: planDay?.dayTitle ?? (planDay == null ? '自由训练' : null),
+      daySlotLabel: slotLabel,
       sourcePlanDayUid: planDay?.uid,
       startedAt: DateTime.now().toIso8601String(),
       exerciseBlocks: blocks,
@@ -314,10 +352,9 @@ class AppState extends ChangeNotifier {
       lastActiveAt: DateTime.now().toIso8601String(),
     );
 
-    // Build memory context for system prompt
-    final memoryContext = memoryFiles.map((f) => f.content).join('\n\n');
+    // Build memory-enriched system prompt
     final systemPrompt =
-        '${_aiService.buildSystemPrompt()}\n\n以下是你的记忆文件：\n$memoryContext';
+        _aiService.buildSystemPrompt(memoryFiles: memoryFiles);
 
     final response = await _aiService.sendMessage(
       message,
@@ -336,6 +373,21 @@ class AppState extends ChangeNotifier {
     topics[topicIndex] = topic;
     notifyListeners();
     return response;
+  }
+
+  /// Generate an AI training summary and return it.
+  Future<String> generateTrainingSummary(TrainingRecord record) async {
+    return _aiService.generateTrainingSummary(record);
+  }
+
+  /// Get suggested questions for a new topic.
+  List<String> getSuggestedQuestions() {
+    return _aiService.generateSuggestedQuestions(
+      currentPlanContext:
+          mesocycles.isNotEmpty ? mesocycles.first.name : null,
+      recentTrainingContext:
+          trainingRecords.isNotEmpty ? 'has_records' : null,
+    );
   }
 
   Future<AiTopic> createNewTopic({

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/training_record.dart';
+import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/glass_card.dart';
 
@@ -19,8 +22,32 @@ class TrainingCompletionScreen extends StatefulWidget {
 
 class _TrainingCompletionScreenState extends State<TrainingCompletionScreen> {
   bool _showDiff = false;
+  String? _aiSummary;
+  bool _isLoadingSummary = false;
 
   TrainingRecord get record => widget.record;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAiSummary();
+  }
+
+  Future<void> _fetchAiSummary() async {
+    setState(() => _isLoadingSummary = true);
+    try {
+      final appState = context.read<AppState>();
+      final summary = await appState.generateTrainingSummary(record);
+      if (mounted) {
+        setState(() {
+          _aiSummary = summary;
+          _isLoadingSummary = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingSummary = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +74,10 @@ class _TrainingCompletionScreenState extends State<TrainingCompletionScreen> {
         children: [
           // Header card
           _buildHeaderCard(duration, stats),
+          const SizedBox(height: 16),
+
+          // AI Summary card
+          _buildAiSummaryCard(),
           const SizedBox(height: 16),
 
           // Exercise blocks
@@ -159,6 +190,90 @@ class _TrainingCompletionScreenState extends State<TrainingCompletionScreen> {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAiSummaryCard() {
+    return GlassCard(
+      color: const Color(0xFFF8F6F0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGold.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.smart_toy,
+                    size: 16, color: AppTheme.primaryGold),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'AI 教练总结',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              if (_aiSummary != null)
+                GestureDetector(
+                  onTap: _fetchAiSummary,
+                  child: const Icon(Icons.refresh,
+                      size: 18, color: AppTheme.textTertiary),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_isLoadingSummary)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.primaryGold,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text('AI 正在分析训练数据...',
+                      style: TextStyle(
+                          fontSize: 13, color: AppTheme.textTertiary)),
+                ],
+              ),
+            )
+          else if (_aiSummary != null)
+            MarkdownBody(
+              data: _aiSummary!,
+              styleSheet: MarkdownStyleSheet(
+                p: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
+                  height: 1.6,
+                ),
+                strong: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            )
+          else
+            const Text(
+              'AI 分析暂时不可用',
+              style: TextStyle(fontSize: 13, color: AppTheme.textTertiary),
+            ),
         ],
       ),
     );

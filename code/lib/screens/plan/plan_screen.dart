@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../training/training_workbench_screen.dart';
+import 'plan_editor_screen.dart';
 import 'timeline_view.dart';
 import 'calendar_view.dart';
 
@@ -26,6 +27,7 @@ class _PlanScreenState extends State<PlanScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            _buildHeader(context),
             _buildViewToggle(),
             Expanded(
               child: _isCalendarView
@@ -35,15 +37,38 @@ class _PlanScreenState extends State<PlanScreen> {
           ],
         ),
       ),
-      floatingActionButton: _isCalendarView
-          ? null
-          : _buildFab(context, appState),
+      floatingActionButton: _buildFab(context, appState),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
+      child: Row(
+        children: [
+          Text(
+            '计划',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+          ),
+          const Spacer(),
+          IconButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PlanEditorScreen()),
+            ),
+            icon: const Icon(Icons.add_rounded, size: 26),
+            tooltip: '新建计划',
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildViewToggle() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       child: Row(
         children: [
           Container(
@@ -63,12 +88,6 @@ class _PlanScreenState extends State<PlanScreen> {
               ],
             ),
           ),
-          const Spacer(),
-          Text(
-            '计划',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(width: 16),
         ],
       ),
     );
@@ -98,26 +117,54 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   Widget _buildFab(BuildContext context, AppState appState) {
-    return FloatingActionButton.extended(
-      onPressed: () {
-        final nextDay = appState.getNextPlanDay();
-        if (nextDay != null) {
-          appState.startTraining(planDay: nextDay);
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const TrainingWorkbenchScreen(),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('没有可用的训练计划')),
-          );
-        }
-      },
-      icon: const Icon(Icons.play_arrow_rounded, size: 22),
-      label: const Text('开始训练'),
-      backgroundColor: AppTheme.primaryGold,
-      foregroundColor: AppTheme.textPrimary,
+    // If there's already an active training, don't show FAB
+    if (appState.activeTraining != null) return const SizedBox.shrink();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Free training button
+        FloatingActionButton.small(
+          heroTag: 'free_train',
+          onPressed: () => _startFreeTraining(context, appState),
+          backgroundColor: AppTheme.cardWhite,
+          foregroundColor: AppTheme.textSecondary,
+          elevation: 2,
+          child: const Icon(Icons.flash_on_rounded, size: 20),
+        ),
+        const SizedBox(height: 10),
+        // Start planned training button
+        FloatingActionButton.extended(
+          heroTag: 'start_train',
+          onPressed: () => _startPlannedTraining(context, appState),
+          icon: const Icon(Icons.play_arrow_rounded, size: 22),
+          label: const Text('开始训练'),
+          backgroundColor: AppTheme.primaryGold,
+          foregroundColor: AppTheme.textPrimary,
+        ),
+      ],
+    );
+  }
+
+  void _startPlannedTraining(BuildContext context, AppState appState) {
+    final nextDay = appState.getNextPlanDay();
+    if (nextDay != null) {
+      appState.startTraining(planDay: nextDay);
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const TrainingWorkbenchScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('没有可用的训练计划')),
+      );
+    }
+  }
+
+  void _startFreeTraining(BuildContext context, AppState appState) {
+    appState.startTraining(); // No planDay → free/open session
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const TrainingWorkbenchScreen()),
     );
   }
 }
