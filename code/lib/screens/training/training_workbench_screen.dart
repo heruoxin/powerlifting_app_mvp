@@ -164,20 +164,24 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
     );
 
     if (confirmed == true && mounted) {
-      // Capture the record before finishing (to show in completion screen)
-      final finishedRecord = appState.activeTraining;
+      // Capture the record UID before finishing
+      final recordUid = appState.activeTraining?.uid;
       await appState.finishTraining();
-      if (mounted && finishedRecord != null) {
-        navigator.pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => TrainingCompletionScreen(
-              record: finishedRecord.copyWith(
-                state: 'completed',
-                finishedAt: DateTime.now().toIso8601String(),
-              ),
+      if (mounted && recordUid != null) {
+        // Retrieve the finalized record from storage
+        final finishedRecord = appState.trainingRecords
+            .where((r) => r.uid == recordUid)
+            .firstOrNull;
+        if (finishedRecord != null) {
+          navigator.pushReplacement(
+            MaterialPageRoute(
+              builder: (_) =>
+                  TrainingCompletionScreen(record: finishedRecord),
             ),
-          ),
-        );
+          );
+        } else {
+          navigator.pop();
+        }
       }
     }
   }

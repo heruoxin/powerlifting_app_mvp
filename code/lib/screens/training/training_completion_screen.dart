@@ -303,14 +303,15 @@ class _TrainingCompletionScreenState extends State<TrainingCompletionScreen> {
           // RPE
           if (isCompleted &&
               set.effortMetrics?.rpe != null &&
-              set.effortMetrics!.rpe!.isNotEmpty) ...[
+              set.effortMetrics!.rpe!.isNotEmpty &&
+              set.effortMetrics!.rpe!.first != null) ...[
             const SizedBox(width: 6),
             Text(
               '@${_formatNum(set.effortMetrics!.rpe!.first)}',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: _rpeColor(set.effortMetrics!.rpe!.first ?? 0),
+                color: _rpeColor(set.effortMetrics!.rpe!.first!),
               ),
             ),
           ],
