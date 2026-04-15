@@ -211,6 +211,16 @@ class PlanSet {
 // ---------------------------------------------------------------------------
 
 class PlanExerciseItem {
+  static const Map<String, bool> defaultFieldVisibility = {
+    'load': true,
+    'intensity': false,
+    'rep': true,
+    'rpe': false,
+    'duration': false,
+    'distance': false,
+    'note': false,
+  };
+
   final String uid;
   final String planDayUid;
   final int orderInDay;
@@ -232,16 +242,7 @@ class PlanExerciseItem {
     Map<String, bool>? fieldVisibility,
     List<PlanSet>? sets,
   })  : uid = uid ?? UidGenerator.generate(),
-        fieldVisibility = fieldVisibility ??
-            const {
-              'load': true,
-              'intensity': false,
-              'rep': true,
-              'rpe': false,
-              'duration': false,
-              'distance': false,
-              'note': false,
-            },
+        fieldVisibility = fieldVisibility ?? defaultFieldVisibility,
         sets = sets ?? const [];
 
   Map<String, dynamic> toJson() => {
@@ -269,15 +270,7 @@ class PlanExerciseItem {
         fieldVisibility:
             (json['fieldVisibility'] as Map<String, dynamic>?)
                     ?.map((k, v) => MapEntry(k, v as bool)) ??
-                const {
-                  'load': true,
-                  'intensity': false,
-                  'rep': true,
-                  'rpe': false,
-                  'duration': false,
-                  'distance': false,
-                  'note': false,
-                },
+                defaultFieldVisibility,
         sets: (json['sets'] as List<dynamic>?)
                 ?.map(
                     (e) => PlanSet.fromJson(e as Map<String, dynamic>))

@@ -45,6 +45,8 @@ class AiMemoryFile {
       );
 
   /// Returns the 5 default AI memory files with initial content.
+  /// The 'soul' file is read-only (isEditable: false) as it defines the
+  /// core AI persona and should not be modified by the user.
   static List<AiMemoryFile> defaultFiles() {
     final now = DateTime.now().toIso8601String();
     return [

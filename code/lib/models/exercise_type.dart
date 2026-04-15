@@ -1,6 +1,16 @@
 import '../utils/uid_generator.dart';
 
 class ExerciseType {
+  static const Map<String, bool> defaultVisibility = {
+    'load': true,
+    'intensity': false,
+    'rep': true,
+    'rpe': false,
+    'duration': false,
+    'distance': false,
+    'note': false,
+  };
+
   final String uid;
   final String key;
   final String displayName;
@@ -16,16 +26,8 @@ class ExerciseType {
     required this.recordProfileKey,
     Map<String, bool>? defaultFieldVisibility,
   })  : uid = uid ?? UidGenerator.generate(),
-        defaultFieldVisibility = defaultFieldVisibility ??
-            const {
-              'load': true,
-              'intensity': false,
-              'rep': true,
-              'rpe': false,
-              'duration': false,
-              'distance': false,
-              'note': false,
-            };
+        defaultFieldVisibility =
+            defaultFieldVisibility ?? defaultVisibility;
 
   Map<String, dynamic> toJson() => {
         'uid': uid,
@@ -47,15 +49,7 @@ class ExerciseType {
         defaultFieldVisibility:
             (json['defaultFieldVisibility'] as Map<String, dynamic>?)
                     ?.map((k, v) => MapEntry(k, v as bool)) ??
-                const {
-                  'load': true,
-                  'intensity': false,
-                  'rep': true,
-                  'rpe': false,
-                  'duration': false,
-                  'distance': false,
-                  'note': false,
-                },
+                defaultVisibility,
       );
 
   ExerciseType copyWith({
