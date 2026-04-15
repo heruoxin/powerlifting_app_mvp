@@ -104,6 +104,17 @@ class AppState extends ChangeNotifier {
     settings = demoSettings;
   }
 
+  /// Reset all data and re-seed with demo data.
+  Future<void> resetWithDemoData() async {
+    await _storage.clearAll();
+    activeTraining = null;
+    await _seedDemoData();
+    await _storage.initDefaultMemoryFiles();
+    memoryFiles = await _storage.getAllMemoryFiles();
+    exerciseTypes = await _storage.getExerciseTypes();
+    notifyListeners();
+  }
+
   // ── Training Lifecycle ──
 
   Future<void> startTraining({

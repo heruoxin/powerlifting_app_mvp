@@ -164,7 +164,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          // ── Data Export / Import (placeholder) ──
+          // ── Data Export / Import ──
           GlassCard(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Column(
@@ -179,11 +179,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('导出功能开发中')),
-                          );
-                        },
+                        onPressed: () => _showExportDialog(context),
                         icon: const Icon(Icons.upload_outlined),
                         label: const Text('导出数据'),
                       ),
@@ -193,7 +189,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('导入功能开发中')),
+                            const SnackBar(content: Text('导入功能将在后续版本支持')),
                           );
                         },
                         icon: const Icon(Icons.download_outlined),
@@ -201,6 +197,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => _showResetDialog(context),
+                  icon: const Icon(Icons.warning_amber_rounded, size: 18),
+                  label: const Text('重置所有数据'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.dangerRed,
+                    side: BorderSide(
+                        color: AppTheme.dangerRed.withValues(alpha: 0.3)),
+                    minimumSize: const Size(double.infinity, 40),
+                  ),
                 ),
               ],
             ),
@@ -245,6 +253,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  void _showExportDialog(BuildContext context) {
+    final appState = context.read<AppState>();
+    final recordCount = appState.trainingRecords.length;
+    final planCount = appState.mesocycles.length;
+    final noteCount = appState.notes.length;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('数据导出'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('当前数据概览：'),
+            const SizedBox(height: 8),
+            Text('• 训练记录: $recordCount 条'),
+            Text('• 训练计划: $planCount 个'),
+            Text('• 训练笔记: $noteCount 条'),
+            const SizedBox(height: 12),
+            const Text(
+              '完整导出功能将在后续版本中实现。数据将以JSON格式导出，支持备份和迁移。',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('了解'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showResetDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重置所有数据'),
+        content: const Text(
+          '这将清除所有训练记录、计划、笔记和设置，并重新加载示例数据。\n\n此操作不可撤销！',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final appState = context.read<AppState>();
+              await appState.resetWithDemoData();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('数据已重置')),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: AppTheme.dangerRed),
+            child: const Text('重置'),
+          ),
         ],
       ),
     );
