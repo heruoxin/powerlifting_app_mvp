@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../models/training_note.dart';
 import '../../models/ai_memory.dart';
+import '../../models/ai_topic.dart';
 import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/glass_card.dart';
@@ -46,10 +47,7 @@ class _NotesScreenState extends State<NotesScreen>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: const [
-                  _UserNotesTab(),
-                  _CoachNotesTab(),
-                ],
+                children: const [_UserNotesTab(), _CoachNotesTab()],
               ),
             ),
           ],
@@ -65,7 +63,7 @@ class _NotesScreenState extends State<NotesScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '训练笔记',
+            '笔记',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
@@ -82,8 +80,7 @@ class _NotesScreenState extends State<NotesScreen>
               controller: _tabController,
               indicator: BoxDecoration(
                 color: AppTheme.cardWhite,
-                borderRadius:
-                    BorderRadius.circular(AppTheme.smallBorderRadius),
+                borderRadius: BorderRadius.circular(AppTheme.smallBorderRadius),
                 boxShadow: AppTheme.subtleShadow,
               ),
               indicatorSize: TabBarIndicatorSize.tab,
@@ -91,11 +88,15 @@ class _NotesScreenState extends State<NotesScreen>
               labelColor: AppTheme.textPrimary,
               unselectedLabelColor: AppTheme.textTertiary,
               labelStyle: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
               unselectedLabelStyle: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w400),
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
               tabs: const [
-                Tab(text: '我的笔记'),
+                Tab(text: '用户笔记'),
                 Tab(text: '教练笔记'),
               ],
             ),
@@ -149,9 +150,11 @@ class _UserNotesTab extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.note_alt_outlined,
-              size: 48,
-              color: AppTheme.textTertiary.withValues(alpha: 0.4)),
+          Icon(
+            Icons.note_alt_outlined,
+            size: 48,
+            color: AppTheme.textTertiary.withValues(alpha: 0.4),
+          ),
           const SizedBox(height: 12),
           const Text(
             '暂无训练笔记',
@@ -178,9 +181,9 @@ class _UserNotesTab extends StatelessWidget {
   }
 
   void _createNewNote(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const NoteDetailScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const NoteDetailScreen()));
   }
 }
 
@@ -190,6 +193,7 @@ class _NoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
     final dateStr = _formatDate(note.updatedAt);
     final preview = note.content.length > 100
         ? '${note.content.substring(0, 100)}...'
@@ -198,11 +202,9 @@ class _NoteCard extends StatelessWidget {
     return GlassCard(
       margin: const EdgeInsets.only(bottom: 8),
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => NoteDetailScreen(note: note),
-          ),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => NoteDetailScreen(note: note)));
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,9 +223,29 @@ class _NoteCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(dateStr,
-                  style: const TextStyle(
-                      fontSize: 11, color: AppTheme.textTertiary)),
+              Text(
+                dateStr,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () => _askAi(context, appState),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryGold.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.smart_toy_outlined,
+                    size: 16,
+                    color: AppTheme.primaryGold,
+                  ),
+                ),
+              ),
             ],
           ),
           if (preview.isNotEmpty) ...[
@@ -246,14 +268,16 @@ class _NoteCard extends StatelessWidget {
               runSpacing: 4,
               children: note.references.map((ref) {
                 return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.accentBlue.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${ref.targetType} · ${ref.targetUid.length > 6 ? ref.targetUid.substring(0, 6) : ref.targetUid}',
+                    appState.describeNoteReference(ref),
                     style: const TextStyle(
                       fontSize: 10,
                       color: AppTheme.accentBlue,
@@ -282,6 +306,39 @@ class _NoteCard extends StatelessWidget {
       return '';
     }
   }
+
+  Future<void> _askAi(BuildContext context, AppState appState) async {
+    final refs = [
+      ContextReference(
+        type: 'note',
+        targetUid: note.uid,
+        displayLabel: note.title.isNotEmpty ? note.title : '训练笔记',
+        previewText: _preview(note.content),
+      ),
+      if (note.linkedTrainingRecordUid != null &&
+          appState.getTrainingRecordByUid(note.linkedTrainingRecordUid!) !=
+              null)
+        ContextReference(
+          type: 'training_record',
+          targetUid: note.linkedTrainingRecordUid,
+          displayLabel: appState.trainingRecordLabel(
+            appState.getTrainingRecordByUid(note.linkedTrainingRecordUid!)!,
+          ),
+        ),
+    ];
+    final topic = await appState.createNewTopic(title: '笔记追问', refs: refs);
+    appState.setCurrentCoachTopic(topic.uid);
+    appState.setTabIndex(3);
+    if (context.mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
+  String _preview(String text) {
+    final sanitized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (sanitized.length <= 80) return sanitized;
+    return '${sanitized.substring(0, 80)}...';
+  }
 }
 
 // ── Coach Notes Tab ──
@@ -303,16 +360,20 @@ class _CoachNotesTabState extends State<_CoachNotesTab> {
 
     if (memoryFiles.isEmpty) {
       return const Center(
-        child: Text('教练记忆文件尚未初始化',
-            style: TextStyle(color: AppTheme.textTertiary)),
+        child: Text(
+          '教练记忆文件尚未初始化',
+          style: TextStyle(color: AppTheme.textTertiary),
+        ),
       );
     }
 
     final primaryKeys = ['diary', 'coach_observation'];
-    final primary =
-        memoryFiles.where((f) => primaryKeys.contains(f.key)).toList();
-    final secondary =
-        memoryFiles.where((f) => !primaryKeys.contains(f.key)).toList();
+    final primary = memoryFiles
+        .where((f) => primaryKeys.contains(f.key))
+        .toList();
+    final secondary = memoryFiles
+        .where((f) => !primaryKeys.contains(f.key))
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -332,8 +393,11 @@ class _CoachNotesTabState extends State<_CoachNotesTab> {
                       color: AppTheme.primaryGold.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.auto_awesome,
-                        size: 16, color: AppTheme.primaryGold),
+                    child: const Icon(
+                      Icons.auto_awesome,
+                      size: 16,
+                      color: AppTheme.primaryGold,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   const Text(
@@ -393,9 +457,7 @@ class _CoachNotesTabState extends State<_CoachNotesTab> {
               ),
               const SizedBox(width: 4),
               Icon(
-                _showSecondary
-                    ? Icons.expand_less
-                    : Icons.expand_more,
+                _showSecondary ? Icons.expand_less : Icons.expand_more,
                 size: 20,
                 color: AppTheme.textTertiary,
               ),
@@ -456,9 +518,7 @@ class _MemoryFileCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => MemoryFileDetailScreen(file: file),
-          ),
+          MaterialPageRoute(builder: (_) => MemoryFileDetailScreen(file: file)),
         );
       },
       child: Column(
@@ -480,20 +540,30 @@ class _MemoryFileCard extends StatelessWidget {
               ),
               if (!file.isEditable)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.textTertiary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text('只读',
-                      style: TextStyle(
-                          fontSize: 10, color: AppTheme.textTertiary)),
+                  child: const Text(
+                    '只读',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
                 ),
               const SizedBox(width: 8),
-              Text(dateStr,
-                  style: const TextStyle(
-                      fontSize: 11, color: AppTheme.textTertiary)),
+              Text(
+                dateStr,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),

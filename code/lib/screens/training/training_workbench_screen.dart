@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/ai_topic.dart';
 import '../../models/training_record.dart';
 import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/set_edit_dialog.dart';
 import '../../widgets/add_exercise_dialog.dart';
+import '../notes/note_detail_screen.dart';
 import 'training_completion_screen.dart';
 
 /// Full-screen training workbench for active session execution.
@@ -175,14 +177,43 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
         if (finishedRecord != null) {
           navigator.pushReplacement(
             MaterialPageRoute(
-              builder: (_) =>
-                  TrainingCompletionScreen(record: finishedRecord),
+              builder: (_) => TrainingCompletionScreen(record: finishedRecord),
             ),
           );
         } else {
           navigator.pop();
         }
       }
+    }
+  }
+
+  Future<void> _openTrainingNote(BuildContext context) async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const NoteDetailScreen()));
+  }
+
+  Future<void> _askAiAboutTraining(BuildContext context) async {
+    final appState = context.read<AppState>();
+    final training = appState.activeTraining;
+    if (training == null) return;
+
+    final topic = await appState.createNewTopic(
+      title: '训练中提问',
+      refs: [
+        ContextReference(
+          type: 'training_record',
+          targetUid: training.uid,
+          displayLabel: appState.trainingRecordLabel(training),
+          previewText:
+              '已完成 ${_countCompletedSets(training)} / ${_countTotalSets(training)} 组',
+        ),
+      ],
+    );
+    appState.setCurrentCoachTopic(topic.uid);
+    appState.setTabIndex(3);
+    if (context.mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
@@ -241,8 +272,11 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.arrow_back_ios,
-                        color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.arrow_back_ios,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -258,8 +292,10 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
@@ -333,7 +369,10 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
   }
 
   Widget _buildExerciseBlock(
-      BuildContext context, ExerciseBlock block, AppState appState) {
+    BuildContext context,
+    ExerciseBlock block,
+    AppState appState,
+  ) {
     final currentSetIndex = block.sets.indexWhere((s) => s.state == 'pending');
 
     return Column(
@@ -346,8 +385,9 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppTheme.categoryColor(block.exerciseCategory)
-                      .withValues(alpha: 0.15),
+                  color: AppTheme.categoryColor(
+                    block.exerciseCategory,
+                  ).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -373,7 +413,9 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
               Text(
                 _blockProgress(block),
                 style: const TextStyle(
-                    fontSize: 12, color: AppTheme.textTertiary),
+                  fontSize: 12,
+                  color: AppTheme.textTertiary,
+                ),
               ),
             ],
           ),
@@ -431,12 +473,14 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
         color: isCurrent
             ? AppTheme.primaryGold.withValues(alpha: 0.08)
             : isCompleted
-                ? AppTheme.secondaryGreen.withValues(alpha: 0.04)
-                : Colors.transparent,
+            ? AppTheme.secondaryGreen.withValues(alpha: 0.04)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         border: isCurrent
             ? Border.all(
-                color: AppTheme.primaryGold.withValues(alpha: 0.3), width: 1)
+                color: AppTheme.primaryGold.withValues(alpha: 0.3),
+                width: 1,
+              )
             : null,
       ),
       child: InkWell(
@@ -465,7 +509,12 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
               ),
               Expanded(
                 child: _buildSetContent(
-                  block, set, planValues, actualValues, isCompleted, isSkipped,
+                  block,
+                  set,
+                  planValues,
+                  actualValues,
+                  isCompleted,
+                  isSkipped,
                 ),
               ),
               if (!isCompleted && !isSkipped)
@@ -473,20 +522,25 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
                   onTap: () => _onSkipSet(context, block.uid, set.uid),
                   child: Padding(
                     padding: const EdgeInsets.all(6),
-                    child: Icon(Icons.skip_next_rounded,
-                        size: 20,
-                        color: AppTheme.textTertiary.withValues(alpha: 0.6)),
+                    child: Icon(
+                      Icons.skip_next_rounded,
+                      size: 20,
+                      color: AppTheme.textTertiary.withValues(alpha: 0.6),
+                    ),
                   ),
                 ),
               if (isCompleted &&
                   set.effortMetrics?.rpe != null &&
                   set.effortMetrics!.rpe!.isNotEmpty)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
-                    color: _rpeColor(set.effortMetrics!.rpe!.first)
-                        .withValues(alpha: 0.12),
+                    color: _rpeColor(
+                      set.effortMetrics!.rpe!.first,
+                    ).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -508,11 +562,17 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
   Widget _buildStateIcon(String state, bool isCurrent) {
     switch (state) {
       case 'completed':
-        return const Icon(Icons.check_circle,
-            size: 20, color: AppTheme.secondaryGreen);
+        return const Icon(
+          Icons.check_circle,
+          size: 20,
+          color: AppTheme.secondaryGreen,
+        );
       case 'skipped':
-        return Icon(Icons.remove_circle_outline,
-            size: 20, color: AppTheme.textTertiary.withValues(alpha: 0.5));
+        return Icon(
+          Icons.remove_circle_outline,
+          size: 20,
+          color: AppTheme.textTertiary.withValues(alpha: 0.5),
+        );
       default:
         if (isCurrent) {
           return Container(
@@ -534,8 +594,11 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
             ),
           );
         }
-        return Icon(Icons.radio_button_unchecked,
-            size: 20, color: AppTheme.textTertiary.withValues(alpha: 0.4));
+        return Icon(
+          Icons.radio_button_unchecked,
+          size: 20,
+          color: AppTheme.textTertiary.withValues(alpha: 0.4),
+        );
     }
   }
 
@@ -568,11 +631,14 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
     }
 
     if (isSkipped) {
-      return const Text('已跳过',
-          style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.textTertiary,
-              fontStyle: FontStyle.italic));
+      return const Text(
+        '已跳过',
+        style: TextStyle(
+          fontSize: 13,
+          color: AppTheme.textTertiary,
+          fontStyle: FontStyle.italic,
+        ),
+      );
     }
 
     if (planValues != null) {
@@ -593,19 +659,27 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
       );
     }
 
-    return const Text('点击录入',
-        style: TextStyle(fontSize: 13, color: AppTheme.textTertiary));
+    return const Text(
+      '点击录入',
+      style: TextStyle(fontSize: 13, color: AppTheme.textTertiary),
+    );
   }
 
   Widget _buildBottomActions(BuildContext context, TrainingRecord training) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
+        16,
+        12,
+        16,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
       decoration: BoxDecoration(
         color: AppTheme.cardWhite,
         border: Border(
           top: BorderSide(
-              color: Colors.black.withValues(alpha: 0.06), width: 0.5),
+            color: Colors.black.withValues(alpha: 0.06),
+            width: 0.5,
+          ),
         ),
         boxShadow: [
           BoxShadow(
@@ -615,26 +689,51 @@ class _TrainingWorkbenchScreenState extends State<TrainingWorkbenchScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _onAddExercise(context),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('添加动作'),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () => _onFinishTraining(context),
-              icon: const Icon(Icons.check_rounded, size: 18),
-              label: const Text('结束训练'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.secondaryGreen,
-                foregroundColor: Colors.white,
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _onAddExercise(context),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('添加动作'),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _openTrainingNote(context),
+                  icon: const Icon(Icons.note_add_outlined, size: 18),
+                  label: const Text('写笔记'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _askAiAboutTraining(context),
+                  icon: const Icon(Icons.smart_toy_outlined, size: 18),
+                  label: const Text('问 AI'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _onFinishTraining(context),
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: const Text('结束训练'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.secondaryGreen,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

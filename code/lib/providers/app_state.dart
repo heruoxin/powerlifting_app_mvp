@@ -28,6 +28,7 @@ class AppState extends ChangeNotifier {
 
   TrainingRecord? activeTraining;
   int currentTabIndex = 0;
+  String? currentCoachTopicUid;
   bool isLoading = true;
 
   // ── Initialization ──
@@ -68,6 +69,13 @@ class AppState extends ChangeNotifier {
     exerciseTypes = results[7] as List<ExerciseType>;
 
     activeTraining = _storage.getActiveTraining();
+    if (currentCoachTopicUid == null && topics.isNotEmpty) {
+      currentCoachTopicUid = topics
+          .reduce(
+            (a, b) => a.lastActiveAt.compareTo(b.lastActiveAt) >= 0 ? a : b,
+          )
+          .uid;
+    }
 
     if (memoryFiles.isEmpty) {
       await _storage.initDefaultMemoryFiles();
@@ -132,7 +140,8 @@ class AppState extends ChangeNotifier {
         final exerciseType = exerciseTypes
             .where((et) => et.key == item.exerciseTypeKey)
             .firstOrNull;
-        final displayName = item.displayNameOverride ??
+        final displayName =
+            item.displayNameOverride ??
             exerciseType?.displayName ??
             item.exerciseTypeKey;
 
@@ -168,13 +177,15 @@ class AppState extends ChangeNotifier {
           );
         }).toList();
 
-        blocks.add(ExerciseBlock(
-          name: displayName,
-          exerciseCategory: _categoryLabel(item.exerciseTypeKey),
-          sourceType: 'planned',
-          displayColumns: _displayCols(item.recordProfileKey),
-          sets: sets,
-        ));
+        blocks.add(
+          ExerciseBlock(
+            name: displayName,
+            exerciseCategory: _categoryLabel(item.exerciseTypeKey),
+            sourceType: 'planned',
+            displayColumns: _displayCols(item.recordProfileKey),
+            sets: sets,
+          ),
+        );
       }
     }
 
@@ -292,7 +303,10 @@ class AppState extends ChangeNotifier {
 
     final updatedBlocks = activeTraining!.exerciseBlocks.map((block) {
       if (block.uid != blockUid) return block;
-      final newSet = TrainingSet(state: 'pending', sourceType: block.sourceType);
+      final newSet = TrainingSet(
+        state: 'pending',
+        sourceType: block.sourceType,
+      );
       return block.copyWith(sets: [...block.sets, newSet]);
     }).toList();
 
@@ -319,13 +333,16 @@ class AppState extends ChangeNotifier {
   // ── Notes ──
 
   Future<void> addNote(TrainingNote note) async {
-    await _storage.saveNote(note);
+    final enriched = _withActiveTrainingReference(note);
+    await _storage.saveNote(enriched);
     notes = await _storage.getAllNotes();
     notifyListeners();
   }
 
   Future<void> updateNote(TrainingNote note) async {
-    final updated = note.copyWith(updatedAt: DateTime.now().toIso8601String());
+    final updated = _withActiveTrainingReference(
+      note.copyWith(updatedAt: DateTime.now().toIso8601String()),
+    );
     await _storage.saveNote(updated);
     notes = await _storage.getAllNotes();
     notifyListeners();
@@ -353,8 +370,7 @@ class AppState extends ChangeNotifier {
     );
 
     // Build memory-enriched system prompt
-    final systemPrompt =
-        _aiService.buildSystemPrompt(memoryFiles: memoryFiles);
+    final systemPrompt = _aiService.buildSystemPrompt(memoryFiles: memoryFiles);
 
     final response = await _aiService.sendMessage(
       message,
@@ -383,10 +399,8 @@ class AppState extends ChangeNotifier {
   /// Get suggested questions for a new topic.
   List<String> getSuggestedQuestions() {
     return _aiService.generateSuggestedQuestions(
-      currentPlanContext:
-          mesocycles.isNotEmpty ? mesocycles.first.name : null,
-      recentTrainingContext:
-          trainingRecords.isNotEmpty ? 'has_records' : null,
+      currentPlanContext: mesocycles.isNotEmpty ? mesocycles.first.name : null,
+      recentTrainingContext: trainingRecords.isNotEmpty ? 'has_records' : null,
     );
   }
 
@@ -400,6 +414,7 @@ class AppState extends ChangeNotifier {
     );
     await _storage.saveTopic(topic);
     topics = await _storage.getAllTopics();
+    currentCoachTopicUid = topic.uid;
     notifyListeners();
     return topic;
   }
@@ -407,6 +422,16 @@ class AppState extends ChangeNotifier {
   Future<void> deleteTopic(String uid) async {
     await _storage.deleteTopic(uid);
     topics = await _storage.getAllTopics();
+    if (currentCoachTopicUid == uid) {
+      currentCoachTopicUid = topics.isNotEmpty
+          ? topics
+                .reduce(
+                  (a, b) =>
+                      a.lastActiveAt.compareTo(b.lastActiveAt) >= 0 ? a : b,
+                )
+                .uid
+          : null;
+    }
     notifyListeners();
   }
 
@@ -475,12 +500,50 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setCurrentCoachTopic(String? uid) {
+    currentCoachTopicUid = uid;
+    notifyListeners();
+  }
+
+  TrainingRecord? getTrainingRecordByUid(String uid) {
+    for (final record in trainingRecords) {
+      if (record.uid == uid) return record;
+    }
+    if (activeTraining?.uid == uid) return activeTraining;
+    return null;
+  }
+
+  String trainingRecordLabel(TrainingRecord record) {
+    final parts = <String>[];
+    if (record.daySlotLabel.isNotEmpty) {
+      parts.add(record.daySlotLabel);
+    }
+    if (record.dayLabel != null && record.dayLabel!.isNotEmpty) {
+      parts.add(record.dayLabel!);
+    }
+    if (parts.isEmpty) return '训练记录';
+    return parts.join(' · ');
+  }
+
+  String describeNoteReference(NoteReference reference) {
+    switch (reference.targetType) {
+      case 'training_record':
+        final record = getTrainingRecordByUid(reference.targetUid);
+        return record != null ? trainingRecordLabel(record) : '训练记录';
+      default:
+        return reference.targetType;
+    }
+  }
+
   // ── Private helpers ──
 
   static String _categoryLabel(String exerciseTypeKey) {
     const mainLifts = {'squat', 'bench_press', 'deadlift'};
     const variants = {
-      'pause_squat', 'close_grip_bench', 'sumo_deadlift', 'front_squat'
+      'pause_squat',
+      'close_grip_bench',
+      'sumo_deadlift',
+      'front_squat',
     };
     if (mainLifts.contains(exerciseTypeKey)) return '主项';
     if (variants.contains(exerciseTypeKey)) return '主项变式';
@@ -498,5 +561,27 @@ class AppState extends ChangeNotifier {
       default:
         return ['load', 'rep'];
     }
+  }
+
+  TrainingNote _withActiveTrainingReference(TrainingNote note) {
+    final training = activeTraining;
+    if (training == null) return note;
+
+    final alreadyLinked = note.references.any(
+      (ref) =>
+          ref.targetType == 'training_record' && ref.targetUid == training.uid,
+    );
+    if (alreadyLinked && note.linkedTrainingRecordUid == training.uid) {
+      return note;
+    }
+
+    return note.copyWith(
+      linkedTrainingRecordUid: note.linkedTrainingRecordUid ?? training.uid,
+      references: [
+        ...note.references,
+        if (!alreadyLinked)
+          NoteReference(targetType: 'training_record', targetUid: training.uid),
+      ],
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../models/ai_memory.dart';
+import '../../models/ai_topic.dart';
 import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
 
@@ -40,19 +41,44 @@ class _MemoryFileDetailScreenState extends State<MemoryFileDetailScreen> {
 
   Future<void> _save() async {
     final appState = context.read<AppState>();
-    final updated = widget.file.copyWith(
-      content: _contentController.text,
-    );
+    final updated = widget.file.copyWith(content: _contentController.text);
     await appState.updateMemoryFile(updated);
     if (mounted) {
       setState(() {
         _isEditing = false;
         _hasChanges = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已保存')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('已保存')));
     }
+  }
+
+  Future<void> _askAi() async {
+    final appState = context.read<AppState>();
+    final content = _isEditing ? _contentController.text : widget.file.content;
+    final topic = await appState.createNewTopic(
+      title: '教练笔记追问',
+      refs: [
+        ContextReference(
+          type: 'memory_file',
+          targetUid: widget.file.key,
+          displayLabel: widget.file.displayName,
+          previewText: _preview(content),
+        ),
+      ],
+    );
+    appState.setCurrentCoachTopic(topic.uid);
+    appState.setTabIndex(3);
+    if (mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
+  String _preview(String text) {
+    final sanitized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (sanitized.length <= 100) return sanitized;
+    return '${sanitized.substring(0, 100)}...';
   }
 
   @override
@@ -61,6 +87,11 @@ class _MemoryFileDetailScreenState extends State<MemoryFileDetailScreen> {
       appBar: AppBar(
         title: Text(widget.file.displayName),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.smart_toy_outlined, size: 22),
+            tooltip: '问 AI',
+            onPressed: _askAi,
+          ),
           if (widget.file.isEditable && !_isEditing)
             IconButton(
               icon: const Icon(Icons.edit_outlined, size: 22),
@@ -110,10 +141,7 @@ class _MemoryFileDetailScreenState extends State<MemoryFileDetailScreen> {
           color: AppTheme.textPrimary,
           height: 1.6,
         ),
-        listBullet: const TextStyle(
-          fontSize: 14,
-          color: AppTheme.textPrimary,
-        ),
+        listBullet: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
       ),
     );
   }
