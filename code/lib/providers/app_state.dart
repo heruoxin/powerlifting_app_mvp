@@ -178,16 +178,20 @@ class AppState extends ChangeNotifier {
       }
     }
 
-    // Determine slot label: for open sessions, generate OS1, OS2, etc.
+    // For open sessions, find max OS number to avoid duplicates
     String slotLabel;
     if (planDay != null) {
       slotLabel = planDay.label;
     } else {
-      final osCount = trainingRecords
-              .where((r) => r.daySlotLabel.startsWith('OS'))
-              .length +
-          1;
-      slotLabel = 'OS$osCount';
+      int maxOs = 0;
+      for (final r in trainingRecords) {
+        final match = RegExp(r'^OS(\d+)$').firstMatch(r.daySlotLabel);
+        if (match != null) {
+          final n = int.tryParse(match.group(1)!) ?? 0;
+          if (n > maxOs) maxOs = n;
+        }
+      }
+      slotLabel = 'OS${maxOs + 1}';
     }
 
     final record = TrainingRecord(

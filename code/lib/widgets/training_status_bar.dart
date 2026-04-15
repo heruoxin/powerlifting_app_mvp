@@ -138,7 +138,12 @@ class _TrainingStatusBarState extends State<TrainingStatusBar>
   }
 
   /// Build a plan context string like "W3 D2 Hypertrophy".
+  /// For free/open sessions (no source plan), show a simpler label.
   String _buildPlanContext(TrainingRecord t) {
+    // Free training sessions have no source plan
+    if (t.sourcePlanDayUid == null) {
+      return t.dayLabel ?? t.daySlotLabel;
+    }
     final parts = <String>[];
     parts.add('W${t.weekIndex + 1}');
     parts.add(t.daySlotLabel);
