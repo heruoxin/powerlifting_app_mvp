@@ -5,7 +5,7 @@ import '../models/training_record.dart';
 
 class AiService {
   static const String _apiKey = 'AIzaSyAZWpsbwOfL4TB59KuRW7CAWXKObXycJ44';
-  static const String _modelName = 'gemini-2.0-flash-001';
+  static const String _modelName = 'gemini-3.0-flash';
 
   late GenerativeModel _model;
 
